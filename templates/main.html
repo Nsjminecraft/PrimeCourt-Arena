@@ -1,12 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PrimeCourt Arena</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-    
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block content %}
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content">
+            <h1>Welcome to PrimeCourt Arena</h1>
+            <p>Premier sports facility for badminton, basketball, and more</p>
+            <a href="#membership" class="cta-button">Join Now</a>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="container">
+            <h2>Our Facilities</h2>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🏸</div>
+                    <h3>Professional Courts</h3>
+                    <p>High-quality courts with professional-grade flooring</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">👨‍🏫</div>
+                    <h3>Expert Coaching</h3>
+                    <p>Learn from certified coaches with years of experience</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🏆</div>
+                    <h3>Tournaments</h3>
+                    <p>Regular competitions for all skill levels</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Court Booking Section -->
+    <section id="booking" class="section bg-light">
+        <div class="container">
+            <h2>Book a Court</h2>
+            <div class="booking-widget">
+                <p>Reserve your court online 24/7</p>
+                <a href="#book-now" class="cta-button">Book Now</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="section">
+        <div class="container">
+            <h2>Visit Us</h2>
+            <div class="contact-grid">
+                <div class="contact-info">
+                    <h3>Location</h3>
+                    <p>123 Sports Avenue</p>
+                    <p>City, State 12345</p>
+                    <p>Phone: (123) 456-7890</p>
+                    <p>Email: info@primecourt.com</p>
+                </div>
+                <div class="hours">
+                    <h3>Hours</h3>
+                    <p>Monday - Friday: 6:00 AM - 11:00 PM</p>
+                    <p>Saturday - Sunday: 7:00 AM - 10:00 PM</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 PrimeCourt Arena. All rights reserved.</p>
+        </div>
+    </footer>
+{% endblock %}

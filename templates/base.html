@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PrimeCourt Arena</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('index') }}" class="logo">PrimeCourt Arena</a>
+            <ul class="nav-links">
+                <li><a href="{{url_for('index')}}">Home</a></li>
+                <li><a href="{{url_for('courts')}}">Courts</a></li>
+                <li><a href="{{url_for('membership')}}">Membership</a></li>
+                <li><a href="{{url_for('lessons')}}">Lessons</a></li>
+                <li><a href="{{url_for('contact')}}">Contact</a></li>
+            </ul>
+        </div>
+    </nav>
+    {% block content %}
+
+    {% endblock %}
+</body>
+</html>
