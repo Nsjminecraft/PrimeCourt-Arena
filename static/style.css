@@ -18,11 +18,12 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--text-color);
+    padding-top: 80px; /* Add this line */
 }
 
 .container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 900px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -159,14 +160,18 @@ img {
 
 /* Sections */
 .section {
-    padding: 6rem 0;
+    background: #f7f9fb;
+    min-height: 80vh;
+    padding: 40px 0;
+    padding-top: 40px; /* Increase if needed */
 }
 
 .section h2 {
     text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-    color: var(--primary-color);
+    margin-bottom: 2rem;
+    color: #205081;
+    font-size: 2.2rem;
+    font-weight: 700;
 }
 
 .bg-light {
@@ -223,33 +228,45 @@ img {
 
 /* Contact Section */
 .contact-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 3rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
     margin-top: 3rem;
 }
 
 .contact-info, .hours {
-    background: white;
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(32,80,129,0.08);
+    border-radius: 12px;
     padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    min-width: 260px;
+    flex: 1;
 }
 
 .contact-info h3, .hours h3 {
-    color: var(--primary-color);
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--secondary-color);
-    display: inline-block;
+    color: #205081;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.contact-info p, .hours p {
+    margin: 0.5rem 0;
+    color: #333;
+    font-size: 1rem;
 }
 
 /* Footer */
 footer {
-    background-color: var(--dark-color);
-    color: white;
-    padding: 2rem 0;
+    background: #2c3235;
+    color: #fff;
+    padding: 20px 0;
     text-align: center;
+    margin-top: 40px;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    border-radius: 0 0 12px 12px;
 }
 
 footer p {
@@ -284,5 +301,15 @@ footer p {
 
     .section {
         padding: 4rem 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .contact-grid {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .container {
+        padding: 0 10px;
     }
 }
