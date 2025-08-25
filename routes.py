@@ -1,16 +1,18 @@
-from flask import render_template, request, redirect, url_for
+from flask import render_template, request, redirect, url_for, session, flash
 from app import app, mongo
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 
-def generate_month_slots():
+app.secret_key = "f=qSj{PuL:,&^IP^zgDL=ez@dcSM"  # Set a strong secret key!
+
+def generate_month_slots(year, month):
     slots = []
-    today = datetime.now()
-    first_day = today.replace(day=1)
+    first_day = datetime(year, month, 1)
     # Get last day of month
-    if first_day.month == 12:
-        next_month = first_day.replace(year=first_day.year+1, month=1, day=1)
+    if month == 12:
+        next_month = datetime(year + 1, 1, 1)
     else:
-        next_month = first_day.replace(month=first_day.month+1, day=1)
+        next_month = datetime(year, month + 1, 1)
     days_in_month = (next_month - first_day).days
 
     for d in range(days_in_month):
@@ -30,11 +32,73 @@ def generate_month_slots():
         })
     return slots
 
-lesson_days = generate_month_slots()
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+        if password != confirm_password:
+            flash('Passwords do not match.')
+            return redirect(url_for('signup'))
+        password = generate_password_hash(password, method='pbkdf2:sha256')
+        if mongo.db.users.find_one({'email': email}):
+            flash('Email already registered.')
+            return redirect(url_for('signup'))
+        mongo.db.users.insert_one({'name': name, 'email': email, 'password': password})
+        flash('Signup successful! Please log in.')
+        return redirect(url_for('login'))
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        user = mongo.db.users.find_one({'email': email})
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = str(user['_id'])
+            session['user_name'] = user['name']
+            session['user_email'] = user['email']
+            flash('Logged in successfully!')
+            return redirect(url_for('lessons'))
+        else:
+            flash('Invalid email or password.')
+            return redirect(url_for('login'))
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out.')
+    return redirect(url_for('login'))
+
+# Protect lessons and membership routes
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/lessons', methods=['GET', 'POST'])
+@login_required
 def lessons():
     message = None
+    # Get month/year from query params, default to current
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    today = datetime.now()
+    if not year:
+        year = today.year
+    if not month:
+        month = today.month
+
+    lesson_days = generate_month_slots(year, month)
+
     selected_day_idx = request.args.get('day')
     selected_day = None
     if selected_day_idx is not None:
@@ -45,12 +109,14 @@ def lessons():
     bookings = list(mongo.db.bookings.find({}))
     for day_idx, day in enumerate(lesson_days):
         for slot_idx, slot in enumerate(day['slots']):
+            slot['group'] = []  # Reset group list
+            slot['private'] = None  # Reset private slot
             for booking in bookings:
                 if booking['date'] == day['date'] and booking['time'] == slot['time']:
-                    if booking['lesson_type'] == 'private':
-                        slot['private'] = {'name': booking['name'], 'email': booking['email']}
-                    elif booking['lesson_type'] == 'group':
+                    if booking['lesson_type'] == 'group':
                         slot['group'].append({'name': booking['name'], 'email': booking['email']})
+                    elif booking['lesson_type'] == 'private':
+                        slot['private'] = {'name': booking['name'], 'email': booking['email']}
 
     if request.method == 'POST':
         day_idx = int(request.form['day_idx'])
@@ -89,10 +155,12 @@ def lessons():
         selected_day_idx = day_idx
 
     # Calculate weekday index for the first day
-    first_day_str = lesson_days[0]['date']
-    first_day_dt = datetime.strptime(first_day_str, '%Y-%m-%d')
+    first_day_dt = datetime(year, month, 1)
+    weekday = first_day_dt.weekday()  # Monday=0
+    # For Sunday=0 alignment:
+    weekday = (weekday + 1) % 7
+
     month_name = first_day_dt.strftime('%B')
-    year = first_day_dt.year
 
     return render_template(
         'lessons.html',
@@ -100,9 +168,10 @@ def lessons():
         selected_day=selected_day,
         selected_day_idx=selected_day_idx,
         message=message,
-        weekday=first_day_dt.weekday(),
+        weekday=weekday,
         month_name=month_name,
         year=year,
+        month=month,
         now=datetime.now()
     )
 
@@ -110,7 +179,8 @@ def lessons():
 def courts():
     return render_template('courts.html')
 
-@app.route('/membership')
+@app.route('/membership', methods=['GET', 'POST'])
+@login_required
 def membership():
     return render_template('membership.html')
 
