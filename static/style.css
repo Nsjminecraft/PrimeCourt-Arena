@@ -257,6 +257,120 @@ img {
     font-size: 1rem;
 }
 
+/* Alerts */
+.alert {
+    background: #ffefc6;
+    color: #b36b00;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+/* Forms */
+form label {
+    display: block;
+    margin-top: 1rem;
+    font-weight: 500;
+    color: #205081;
+}
+
+form input, form select, form button {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #e6eaf2;
+    margin-top: 0.5rem;
+}
+
+form button {
+    background: #205081;
+    color: #fff;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: background 0.2s;
+}
+
+form button:hover {
+    background: #ff6b35;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 2rem;
+}
+
+table th, table td {
+    border: 1px solid #e6eaf2;
+    padding: 0.5rem;
+    text-align: center;
+}
+
+table th {
+    background: #f7f9fb;
+    color: #205081;
+}
+
+/* Calendar */
+.calendar-days {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+}
+
+.calendar-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2rem;
+    background: #222;
+    color: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.calendar-table th, .calendar-table td {
+    width: 14.28%;
+    height: 80px;
+    text-align: center;
+    border: 1px solid #333;
+    font-size: 1.2rem;
+    background: #222;
+}
+.calendar-table th {
+    background: #181818;
+    font-weight: 600;
+    color: #bbb;
+}
+.calendar-day-btn {
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.calendar-day-btn:hover,
+.calendar-day-btn.active {
+    background: #1a5f9e;
+    color: #fff;
+}
+
+.calendar-day-past {
+    background: #888 !important;
+    color: #ccc !important;
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+
 /* Footer */
 footer {
     background: #2c3235;
