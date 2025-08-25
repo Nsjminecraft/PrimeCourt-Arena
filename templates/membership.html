@@ -3,26 +3,298 @@
 {% block content %}
 <div class="container section">
     <h2>Membership Options</h2>
-    <div class="features-grid">
-        <div class="feature">
-            <h3>Basic Membership</h3>
-            <p>Access to courts during open hours.<br>
-            $30/month</p>
+    <p class="text-center" style="margin-bottom: 2rem;">Choose the perfect membership plan for your needs</p>
+    
+    <div class="pricing-grid">
+        {% for plan_id, plan in config.MEMBERSHIP_PLANS.items() %}
+        <div class="pricing-card {% if plan_id == 'premium' %}featured{% endif %}">
+            {% if plan_id == 'premium' %}
+            <div class="popular-tag">MOST POPULAR</div>
+            {% endif %}
+            
+            <h3>{{ plan.name }}</h3>
+            <div class="price">
+                ${{ "%0.2f"|format(plan.price / 100) }}<span>/month</span>
+            </div>
+            
+            <ul class="features-list">
+                {% for feature in plan.features %}
+                <li>{{ feature }}</li>
+                {% endfor %}
+            </ul>
+            
+            <form action="{{ url_for('create_checkout_session') }}" method="POST">
+                <input type="hidden" name="plan_id" value="{{ plan_id }}">
+                <button type="submit" class="btn btn-primary">
+                    {% if session.get('user_id') %}
+                        Get Started
+                    {% else %}
+                        Sign Up Now
+                    {% endif %}
+                </button>
+            </form>
+            
+            {% if plan_id == 'family' %}
+            <p class="text-muted small" style="margin-top: 10px;">* Family plan includes 4 members. Additional members at $15/month each.</p>
+            {% endif %}
         </div>
-        <div class="feature">
-            <h3>Premium Membership</h3>
-            <p>Includes Basic benefits plus unlimited group lessons.<br>
-            $60/month</p>
-        </div>
-        <div class="feature">
-            <h3>Family Membership</h3>
-            <p>Up to 4 family members.<br>
-            $100/month</p>
+        {% endfor %}
+    </div>
+    
+    <div class="membership-benefits" style="margin-top: 4rem;">
+        <h3 class="text-center">All Members Enjoy</h3>
+        <div class="benefits-grid">
+            <div class="benefit">
+                <i class="fas fa-check-circle"></i>
+                <span>No long-term contracts</span>
+            </div>
+            <div class="benefit">
+                <i class="fas fa-check-circle"></i>
+                <span>Free cancellation anytime</span>
+            </div>
+            <div class="benefit">
+                <i class="fas fa-check-circle"></i>
+                <span>24/7 Customer Support</span>
+            </div>
+            <div class="benefit">
+                <i class="fas fa-check-circle"></i>
+                <span>Access to all locations</span>
+            </div>
         </div>
     </div>
-    <div style="margin-top:2rem;">
-        <h3>How to Join</h3>
-        <p>Visit our front desk or <a href="/contact">contact us</a> for more information and registration.</p>
+    
+    <div class="faq-section" style="margin-top: 4rem;">
+        <h3 class="text-center">Frequently Asked Questions</h3>
+        <div class="faq">
+            <div class="faq-item">
+                <button class="faq-question">How does the billing work? <i class="fas fa-chevron-down"></i></button>
+                <div class="faq-answer">
+                    <p>Your membership will be automatically billed on a monthly basis. You can cancel anytime before your next billing cycle.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">Can I change my plan later? <i class="fas fa-chevron-down"></i></button>
+                <div class="faq-answer">
+                    <p>Yes, you can upgrade or downgrade your plan at any time. The changes will take effect at the start of your next billing cycle.</p>
+                </div>
+            </div>
+            <div class="faq-item">
+                <button class="faq-question">Is there a free trial? <i class="fas fa-chevron-down"></i></button>
+                <div class="faq-answer">
+                    <p>We offer a 7-day free trial for new members. No credit card is required to start your trial.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+    margin: 3rem 0;
+}
+
+.pricing-card {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #eaeaea;
+}
+
+.pricing-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.pricing-card.featured {
+    border: 2px solid #4CAF50;
+    transform: scale(1.03);
+}
+
+.pricing-card.featured:hover {
+    transform: scale(1.03) translateY(-5px);
+}
+
+.popular-tag {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #4CAF50;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.price {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 1.5rem 0;
+    color: #333;
+}
+
+.price span {
+    font-size: 1rem;
+    color: #666;
+    font-weight: 400;
+}
+
+.features-list {
+    list-style: none;
+    padding: 0;
+    margin: 2rem 0;
+}
+
+.features-list li {
+    padding: 0.5rem 0;
+    position: relative;
+    padding-left: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.features-list li:before {
+    content: '✓';
+    color: #4CAF50;
+    position: absolute;
+    left: 0;
+    font-weight: bold;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.benefit {
+    display: flex;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.benefit i {
+    color: #4CAF50;
+    margin-right: 10px;
+    font-size: 1.2rem;
+}
+
+.faq {
+    max-width: 800px;
+    margin: 2rem auto 0;
+}
+
+.faq-item {
+    margin-bottom: 1rem;
+    border: 1px solid #eaeaea;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.faq-question {
+    width: 100%;
+    text-align: left;
+    padding: 1.2rem;
+    background: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.faq-question:hover {
+    background: #f8f9fa;
+}
+
+.faq-question i {
+    transition: transform 0.3s;
+}
+
+.faq-question.active i {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    background: #f8f9fa;
+}
+
+.faq-answer p {
+    padding: 0 1.2rem 1.2rem;
+    margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .pricing-card.featured {
+        transform: none;
+    }
+    
+    .pricing-card.featured:hover {
+        transform: none;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle FAQ items
+    const faqQuestions = document.querySelectorAll('.faq-question');
+    
+    faqQuestions.forEach(question => {
+        question.addEventListener('click', () => {
+            const answer = question.nextElementSibling;
+            const isOpen = question.classList.contains('active');
+            
+            // Close all other open FAQs
+            faqQuestions.forEach(q => {
+                if (q !== question) {
+                    q.classList.remove('active');
+                    q.nextElementSibling.style.maxHeight = null;
+                }
+            });
+            
+            // Toggle current FAQ
+            if (!isOpen) {
+                question.classList.add('active');
+                answer.style.maxHeight = answer.scrollHeight + 'px';
+            } else {
+                question.classList.remove('active');
+                answer.style.maxHeight = null;
+            }
+        });
+    });
+    
+    // Show login modal if user is not logged in
+    const signupButtons = document.querySelectorAll('.btn-primary');
+    signupButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            {% if not session.get('user_id') %}
+                e.preventDefault();
+                window.location.href = "{{ url_for('login') }}?next={{ url_for('membership') }}";
+            {% endif %}
+        });
+    });
+});
+</script>
 {% endblock %}

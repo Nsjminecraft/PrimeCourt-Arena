@@ -1,2 +1,4 @@
 flask==3.0.0
 flask_pymongo==2.3.0
+stripe==7.11.0
+python-dotenv==1.0.0
