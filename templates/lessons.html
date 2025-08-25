@@ -1,5 +1,95 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="container">
+    <h2>Book a Badminton Lesson</h2>
+    {% if message %}
+        <div class="alert">{{ message }}</div>
+    {% endif %}
 
+    <h3>
+        <form method="get" style="display:inline;">
+            <input type="hidden" name="month" value="{{ month - 1 if month > 1 else 12 }}">
+            <input type="hidden" name="year" value="{{ year if month > 1 else year - 1 }}">
+            <button type="submit" class="calendar-arrow-btn">&#8592;</button>
+        </form>
+        {{ month_name }} {{ year }}
+        <form method="get" style="display:inline;">
+            <input type="hidden" name="month" value="{{ month + 1 if month < 12 else 1 }}">
+            <input type="hidden" name="year" value="{{ year if month < 12 else year + 1 }}">
+            <button type="submit" class="calendar-arrow-btn">&#8594;</button>
+        </form>
+    </h3>
+    <table class="calendar-table">
+        <thead>
+            <tr>
+                <th>Sun</th>
+                <th>Mon</th>
+                <th>Tue</th>
+                <th>Wed</th>
+                <th>Thu</th>
+                <th>Fri</th>
+                <th>Sat</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set ns = namespace(day_ptr=0) %}
+            {% set today_str = now.strftime('%Y-%m-%d') %}
+            {% for week in range(6) %}
+            <tr>
+                {% for wd in range(7) %}
+                    {% if week == 0 and wd < weekday %}
+                        <td></td>
+                    {% elif ns.day_ptr < lesson_days|length %}
+                        {% set day_date = lesson_days[ns.day_ptr].date %}
+                        {% set is_past = day_date < today_str %}
+                        <td>
+                            <form method="get">
+                                <input type="hidden" name="day" value="{{ ns.day_ptr }}">
+                                <button type="submit"
+                                    class="calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past %} calendar-day-past{% endif %}"
+                                    {% if is_past %}disabled{% endif %}>
+                                    {{ lesson_days[ns.day_ptr].date.split('-')[2] }}
+                                </button>
+                            </form>
+                        </td>
+                        {% set ns.day_ptr = ns.day_ptr + 1 %}
+                    {% else %}
+                        <td></td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if selected_day %}
+        <h3>Available Slots for {{ selected_day.date }}</h3>
+        <form method="post">
+            <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
+            <label for="lesson_type">Lesson Type:</label>
+            <select name="lesson_type" id="lesson_type" required>
+                <option value="private">Private (1 per slot)</option>
+                <option value="group">Group (up to 5 per slot)</option>
+            </select>
+            <label for="slot_idx">Choose a Slot:</label>
+            <select name="slot_idx" id="slot_idx" required>
+                {% for slot in selected_day.slots %}
+                    <option value="{{ loop.index0 }}"
+                        {% if slot.private %}disabled{% endif %}
+                        {% if slot.group|length >= 5 %}disabled{% endif %}>
+                        {{ slot.time }}
+                        {% if slot.private %}(Private Booked){% endif %}
+                        ({{ slot.group|length }}/5 Group)
+                    </option>
+                {% endfor %}
+            </select>
+            <label for="name">Your Name:</label>
+            <input type="text" name="name" id="name" required>
+            <label for="email">Your Email:</label>
+            <input type="email" name="email" id="email" required>
+            <button type="submit">Book Slot</button>
+        </form>
+    {% endif %}
+</div>
 {% endblock %}

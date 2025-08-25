@@ -5,21 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PrimeCourt Arena</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <nav class="navbar">
         <div class="container">
             <a href="{{ url_for('index') }}" class="logo">PrimeCourt Arena</a>
+            <button class="navbar-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">
+                <i class="fas fa-bars"></i>
+            </button>
             <ul class="nav-links">
-                <li><a href="{{url_for('courts')}}">Courts</a></li>
-                <li><a href="{{url_for('membership')}}">Membership</a></li>
+                <li><a href="{{url_for('index')}}">Home</a></li>
                 <li><a href="{{url_for('lessons')}}">Lessons</a></li>
+                <li><a href="{{url_for('membership')}}">Membership</a></li>
+                <li><a href="{{url_for('courts')}}">Courts</a></li>
                 <li><a href="{{url_for('contact')}}">Contact</a></li>
+                {% if session.user_id %}
+                    <li><span>Welcome, {{ session.user_name }}</span></li>
+                    <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i></a></li>
+                {% else %}
+                    <li><a href="{{ url_for('login') }}"><i class="fas fa-sign-in-alt"></i></a></li>
+                    <li><a href="{{ url_for('signup') }}"><i class="fas fa-user-plus"></i></a></li>
+                {% endif %}
             </ul>
         </div>
     </nav>
     {% block content %}
 
     {% endblock %}
+    <script>
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const nav = document.querySelector('.nav-links');
+            const toggle = document.querySelector('.navbar-toggle');
+            if (nav && nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) {
+                nav.classList.remove('open');
+            }
+        });
+    </script>
 </body>
 </html>

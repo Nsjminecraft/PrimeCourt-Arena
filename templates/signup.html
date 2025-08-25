@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container section">
+    <h2>Sign Up</h2>
+    <form method="post" onsubmit="return checkPasswords();">
+        <label>Name:</label>
+        <input type="text" name="name" required>
+        <label>Email:</label>
+        <input type="email" name="email" required>
+        <label>Password:</label>
+        <input type="password" name="password" id="password" required>
+        <label>Confirm Password:</label>
+        <input type="password" name="confirm_password" id="confirm_password" required>
+        <button type="submit">Sign Up</button>
+    </form>
+    <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+</div>
+<script>
+function checkPasswords() {
+    var pw = document.getElementById('password').value;
+    var cpw = document.getElementById('confirm_password').value;
+    if (pw !== cpw) {
+        alert('Passwords do not match!');
+        return false;
+    }
+    return true;
+}
+</script>
+{% endblock %}
