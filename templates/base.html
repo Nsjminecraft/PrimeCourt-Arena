@@ -8,6 +8,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
     <nav class="navbar">
         <div class="container">
             <a href="{{ url_for('index') }}" class="logo">PrimeCourt Arena</a>
@@ -41,6 +52,28 @@
             if (nav && nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) {
                 nav.classList.remove('open');
             }
+        });
+
+        // Auto-dismiss flash messages after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                // Add close button
+                const closeBtn = document.createElement('button');
+                closeBtn.className = 'alert-close';
+                closeBtn.innerHTML = '&times;';
+                closeBtn.onclick = function() {
+                    alert.style.animation = 'fadeOut 0.5s ease-out forwards';
+                    setTimeout(() => alert.remove(), 500);
+                };
+                alert.appendChild(closeBtn);
+
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    alert.style.animation = 'fadeOut 0.5s ease-out forwards';
+                    setTimeout(() => alert.remove(), 500);
+                }, 5000);
+            });
         });
     </script>
 </body>
