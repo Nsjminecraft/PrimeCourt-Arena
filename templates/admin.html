@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Admin Dashboard</h1>
+        <div class="actions">
+            <a class="btn btn-primary" href="{{ url_for('admin_schedule') }}">
+                <i class="fas fa-calendar-alt"></i> Manage Schedule
+            </a>
+            <a class="btn btn-secondary" href="{{ url_for('profile') }}">
+                <i class="fas fa-arrow-left"></i> Back to Profile
+            </a>
+        </div>
+    </div>
+
+    <div class="admin-grid">
+        <!-- User Management -->
+        <div class="admin-card">
+            <h3><i class="fas fa-users"></i> User Management</h3>
+            <table class="table">
+                <thead><tr><th>Name</th><th>Email</th><th>Admin</th><th>Actions</th></tr></thead>
+                <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>{{ u.name }}</td>
+                        <td>{{ u.email }}</td>
+                        <td>
+                            {% if u.is_admin %}
+                                <span class="badge badge-success">Admin</span>
+                            {% else %}
+                                <span class="badge badge-secondary">User</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_admin %}
+                                {% if u._id|string != session.user_id %}
+                                    <a href="{{ url_for('demote_user', user_id=u._id) }}" 
+                                       class="btn btn-sm btn-warning"
+                                       onclick="return confirm('Demote this user from admin?')">
+                                        Demote
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">You</span>
+                                {% endif %}
+                            {% else %}
+                                <a href="{{ url_for('promote_user', user_id=u._id) }}" 
+                                   class="btn btn-sm btn-primary"
+                                   onclick="return confirm('Promote this user to admin?')">
+                                    Promote
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Lesson Bookings -->
+        <div class="admin-card">
+            <h3><i class="fas fa-chalkboard-teacher"></i> Lesson Bookings</h3>
+            <table class="table">
+                <thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Name</th><th>Email</th><th>Recurring</th></tr></thead>
+                <tbody>
+                {% for b in lesson_bookings %}
+                    <tr>
+                        <td>{{ b.date }}</td>
+                        <td>{{ b.time }}</td>
+                        <td>{{ b.lesson_type }}</td>
+                        <td>{{ b.name }}</td>
+                        <td>{{ b.email }}</td>
+                        <td>
+                            {% if b.recurring_id %}
+                                <span class="badge badge-info">
+                                    Week {{ b.week_number }}/{{ b.total_weeks }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">Single</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Court Bookings -->
+        <div class="admin-card">
+            <h3><i class="fas fa-basketball-ball"></i> Court Bookings</h3>
+            <table class="table">
+                <thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Name</th><th>Email</th></tr></thead>
+                <tbody>
+                {% for b in court_bookings %}
+                    <tr>
+                        <td>{{ b.date }}</td>
+                        <td>{{ b.time }}</td>
+                        <td>{{ b.court_id }}</td>
+                        <td>{{ b.user_name }}</td>
+                        <td>{{ b.user_email }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Email Management -->
+        <div class="admin-card">
+            <h3><i class="fas fa-envelope"></i> Email Management</h3>
+            <div class="email-actions">
+                <a href="{{ url_for('send_reminders') }}?secret={{ config.REMINDER_SECRET if config.REMINDER_SECRET else 'test' }}" 
+                   class="btn btn-primary"
+                   onclick="return confirm('Send reminder emails for tomorrow?')">
+                    <i class="fas fa-bell"></i> Send Tomorrow's Reminders
+                </a>
+                <p class="email-info">
+                    <small>This will send reminder emails to all customers with bookings tomorrow.</small>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-grid { display:grid; grid-template-columns: 1fr; gap:24px; }
+@media (min-width: 1000px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
+.admin-card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.table { width:100%; border-collapse: collapse; }
+.table th, .table td { text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb; white-space: nowrap; }
+.table thead th { background:#f8fafc; position: sticky; top:0; }
+.badge { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+.badge-success { background:#d1fae5; color:#059669; }
+.badge-secondary { background:#e5e7eb; color:#374151; }
+.badge-info { background:#dbeafe; color:#1d4ed8; }
+.btn-sm { padding:4px 8px; font-size:12px; border-radius:4px; text-decoration:none; display:inline-block; }
+.btn-primary { background:white; color:#3b82f6; border:2px solid #3b82f6; }
+.btn-warning { background:#f59e0b; color:white; }
+.text-muted { color:#6b7280; font-style:italic; }
+.email-actions { text-align:center; padding:16px 0; }
+.email-info { margin-top:12px; color:#6b7280; }
+</style>
+{% endblock %}

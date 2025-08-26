@@ -1,5 +1,73 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Courts</h1>
+        <form method="get" action="{{ url_for('courts') }}" class="date-picker">
+            <label for="date">Select date</label>
+            <input type="date" id="date" name="date" value="{{ date_str }}" onchange="this.form.submit()" />
+        </form>
+    </div>
 
+    <div class="courts-grid">
+        {% for court in courts %}
+        <div class="court-card">
+            <div class="court-header">
+                <h3>{{ court.name }}</h3>
+                <span class="badge">{{ court.surface }}</span>
+            </div>
+
+            <div class="slots">
+                {% for slot in time_slots %}
+                {% set is_booked = booked_map.get((court.id, slot)) %}
+                <div class="slot {{ 'booked' if is_booked else 'available' }}">
+                    <div class="slot-time">{{ slot }}</div>
+                    <div class="slot-action">
+                        {% if is_booked %}
+                            <span class="status booked">
+                                <i class="fas fa-lock"></i>
+                                Booked{% if is_booked.user_name %} by {{ is_booked.user_name }}{% endif %}
+                            </span>
+                        {% else %}
+                            <form method="post" action="{{ url_for('courts', date=date_str) }}">
+                                <input type="hidden" name="date" value="{{ date_str }}" />
+                                <input type="hidden" name="court_id" value="{{ court.id }}" />
+                                <input type="hidden" name="time_slot" value="{{ slot }}" />
+                                {% if session.user_id %}
+                                <button class="btn btn-primary btn-sm" type="submit">
+                                    <i class="fas fa-calendar-check"></i> Book
+                                </button>
+                                {% else %}
+                                <a class="btn btn-secondary btn-sm" href="{{ url_for('login') }}">
+                                    Log in to book
+                                </a>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.section-header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.section-header h1 { margin:0; }
+.date-picker { display:flex; align-items:center; gap:8px; }
+.courts-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:20px; }
+.court-card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.court-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.badge { background:#f1f5f9; color:#0f172a; font-size:12px; padding:4px 8px; border-radius:999px; }
+.slots { display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow:auto; padding-right:4px; }
+.slot { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid #e5e7eb; border-radius:8px; }
+.slot.available { background:#f9fafb; }
+.slot.booked { background:#fff7ed; border-color:#fed7aa; }
+.slot-time { font-weight:600; }
+.status.booked { color:#b45309; font-weight:600; display:flex; align-items:center; gap:6px; }
+.btn-sm { padding:6px 10px; font-size:0.9rem; }
+</style>
 {% endblock %}

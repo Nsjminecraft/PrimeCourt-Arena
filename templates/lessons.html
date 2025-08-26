@@ -46,6 +46,8 @@
                         <td>
                             <form method="get">
                                 <input type="hidden" name="day" value="{{ ns.day_ptr }}">
+                                <input type="hidden" name="month" value="{{ month }}">
+                                <input type="hidden" name="year" value="{{ year }}">
                                 <button type="submit"
                                     class="calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past %} calendar-day-past{% endif %}"
                                     {% if is_past %}disabled{% endif %}>
@@ -64,32 +66,73 @@
     </table>
 
     {% if selected_day %}
-        <h3>Available Slots for {{ selected_day.date }}</h3>
-        <form method="post">
-            <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
-            <label for="lesson_type">Lesson Type:</label>
-            <select name="lesson_type" id="lesson_type" required>
-                <option value="private">Private (1 per slot)</option>
-                <option value="group">Group (up to 5 per slot)</option>
-            </select>
-            <label for="slot_idx">Choose a Slot:</label>
-            <select name="slot_idx" id="slot_idx" required>
-                {% for slot in selected_day.slots %}
-                    <option value="{{ loop.index0 }}"
-                        {% if slot.private %}disabled{% endif %}
-                        {% if slot.group|length >= 5 %}disabled{% endif %}>
-                        {{ slot.time }}
-                        {% if slot.private %}(Private Booked){% endif %}
-                        ({{ slot.group|length }}/5 Group)
-                    </option>
-                {% endfor %}
-            </select>
-            <label for="name">Your Name:</label>
-            <input type="text" name="name" id="name" required>
-            <label for="email">Your Email:</label>
-            <input type="email" name="email" id="email" required>
-            <button type="submit">Book Slot</button>
-        </form>
+        {% if selected_day.no_classes %}
+            <div class="no-classes-alert">
+                <h3>No Classes on {{ selected_day.date }}</h3>
+                <p><strong>Reason:</strong> {{ selected_day.no_classes_reason or 'Holiday' }}</p>
+            </div>
+        {% else %}
+            <h3>Available Slots for {{ selected_day.date }}</h3>
+            <form method="post">
+                <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
+                <label for="lesson_type">Lesson Type:</label>
+                <select name="lesson_type" id="lesson_type" required>
+                    <option value="private">Private (1 per slot)</option>
+                    <option value="group">Group (up to 5 per slot)</option>
+                </select>
+                <label for="slot_idx">Choose a Slot:</label>
+                <select name="slot_idx" id="slot_idx" required>
+                    {% for slot in selected_day.slots %}
+                        <option value="{{ loop.index0 }}"
+                            {% if slot.private %}disabled{% endif %}
+                            {% if slot.group|length >= 5 %}disabled{% endif %}
+                            {% if not slot.is_available %}disabled{% endif %}
+                            {% if slot.is_past %}disabled{% endif %}>
+                            {{ slot.time }}
+                            {% if slot.private %}(Private Booked){% endif %}
+                            {% if not slot.is_available %}(Not Available){% endif %}
+                            {% if slot.is_past %}(Past){% endif %}
+                            ({{ slot.group|length }}/5 Group)
+                        </option>
+                    {% endfor %}
+                </select>
+                <label for="recurring_weeks">Book for how many weeks?</label>
+                <select name="recurring_weeks" id="recurring_weeks">
+                    <option value="1">1 week (single lesson)</option>
+                    <option value="2">2 weeks</option>
+                    <option value="3">3 weeks</option>
+                    <option value="4">4 weeks (1 month)</option>
+                    <option value="8">8 weeks (2 months)</option>
+                    <option value="12">12 weeks (3 months)</option>
+                </select>
+                <label for="name">Your Name:</label>
+                <input type="text" name="name" id="name" required>
+                <label for="email">Your Email:</label>
+                <input type="email" name="email" id="email" required>
+                <button type="submit">Book Recurring Lessons</button>
+            </form>
+        {% endif %}
     {% endif %}
 </div>
 {% endblock %}
+
+<style>
+.no-classes-alert {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin: 20px 0;
+}
+
+.no-classes-alert h3 {
+    color: #dc2626;
+    margin: 0 0 10px 0;
+}
+
+.no-classes-alert p {
+    color: #7f1d1d;
+    margin: 0;
+}
+</style>

@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="profile-header">
+        <h1>My Profile</h1>
+        <p class="welcome-text">Welcome back, {{ user.name }}!</p>
+    </div>
+
+    <div class="profile-grid">
+        <!-- User Info Card -->
+        <div class="profile-card">
+            <h3><i class="fas fa-user"></i> Account Information</h3>
+            <div class="info-item">
+                <span class="label">Name:</span>
+                <span class="value">{{ user.name }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Email:</span>
+                <span class="value">{{ user.email }}</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Member Since:</span>
+                <span class="value">{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}</span>
+            </div>
+        </div>
+
+        <!-- Membership Status Card -->
+        <div class="profile-card {% if is_active %}active-membership{% else %}inactive-membership{% endif %}">
+            <h3><i class="fas fa-crown"></i> Membership Status</h3>
+            
+            {% if is_active %}
+                <div class="status-badge active">
+                    <i class="fas fa-check-circle"></i> Active
+                </div>
+                <div class="info-item">
+                    <span class="label">Plan:</span>
+                    <span class="value">{{ membership.plan|title }} Membership</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Expires:</span>
+                    <span class="value">{{ membership.expires_at.strftime('%B %d, %Y') if membership.expires_at else 'N/A' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Days Remaining:</span>
+                    <span class="value">{{ days_remaining }} days</span>
+                </div>
+            {% else %}
+                <div class="status-badge inactive">
+                    <i class="fas fa-times-circle"></i> Inactive
+                </div>
+                <p class="no-membership">You don't have an active membership.</p>
+                <a href="{{ url_for('membership') }}" class="btn btn-primary">Get Membership</a>
+            {% endif %}
+        </div>
+
+        <!-- Payment History Card -->
+        <div class="profile-card">
+            <h3><i class="fas fa-credit-card"></i> Payment Information</h3>
+            
+            {% if membership.stripe_customer_id %}
+                <div class="info-item">
+                    <span class="label">Customer ID:</span>
+                    <span class="value">{{ membership.stripe_customer_id }}</span>
+                </div>
+                {% if membership.stripe_subscription_id %}
+                <div class="info-item">
+                    <span class="label">Subscription ID:</span>
+                    <span class="value">{{ membership.stripe_subscription_id }}</span>
+                </div>
+                {% endif %}
+            {% else %}
+                <p class="no-payment">No payment information available.</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick Actions Card -->
+        <div class="profile-card">
+            <h3><i class="fas fa-cogs"></i> Quick Actions</h3>
+            <div class="action-buttons">
+                {% if is_active %}
+                    <a href="{{ url_for('change_membership') }}" class="btn btn-upgrade">
+                        <i class="fas fa-sync-alt"></i> Change Plan
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('membership') }}" class="btn btn-primary">
+                        <i class="fas fa-crown"></i> Get Membership
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('lessons') }}" class="btn btn-secondary">
+                    <i class="fas fa-calendar"></i> Book Lessons
+                </a>
+                <a href="{{ url_for('courts') }}" class="btn btn-secondary">
+                    <i class="fas fa-basketball-ball"></i> View Courts
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.profile-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.profile-header h1 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.welcome-text {
+    font-size: 1.2rem;
+    color: var(--text-light);
+}
+
+.profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.profile-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    border: 1px solid #eaeaea;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.profile-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+}
+
+.profile-card h3 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profile-card h3 i {
+    color: var(--secondary-color);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.label {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.value {
+    color: var(--text-light);
+    text-align: right;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 25px;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.status-badge.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.no-membership, .no-payment {
+    color: var(--text-light);
+    font-style: italic;
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-align: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #154a7a;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: var(--text-color);
+    border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+.btn-upgrade {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+}
+
+.btn-upgrade:hover {
+    background: linear-gradient(135deg, #154a7a, #e65a1f);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.active-membership {
+    border-left: 4px solid #28a745;
+}
+
+.inactive-membership {
+    border-left: 4px solid #dc3545;
+}
+
+@media (max-width: 768px) {
+    .profile-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .value {
+        text-align: left;
+        max-width: 100%;
+    }
+}
+</style>
+{% endblock %}

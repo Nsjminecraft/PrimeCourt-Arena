@@ -32,6 +32,11 @@
                 <li><a href="{{url_for('courts')}}">Courts</a></li>
                 <li><a href="{{url_for('contact')}}">Contact</a></li>
                 {% if session.user_id %}
+                    {% if session.is_admin %}
+                        <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-shield-alt"></i> Admin</a></li>
+                    {% else %}
+                        <li><a href="{{ url_for('profile') }}"><i class="fas fa-user"></i> Profile</a></li>
+                    {% endif %}
                     <li><span>Welcome, {{ session.user_name }}</span></li>
                     <li><a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i></a></li>
                 {% else %}

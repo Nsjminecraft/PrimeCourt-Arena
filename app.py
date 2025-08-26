@@ -25,7 +25,6 @@ stripe_public_key = os.getenv('STRIPE_PUBLIC_KEY')
 MEMBERSHIP_PLANS = {
     'basic': {
         'name': 'Basic Membership',
-        'price_id': 'price_xxxx_basic',  # Replace with your actual price ID from Stripe
         'price': 3000,  # $30.00
         'interval': 'month',
         'features': [
@@ -36,7 +35,6 @@ MEMBERSHIP_PLANS = {
     },
     'premium': {
         'name': 'Premium Membership',
-        'price_id': 'price_xxxx_premium',  # Replace with your actual price ID from Stripe
         'price': 6000,  # $60.00
         'interval': 'month',
         'features': [
@@ -48,7 +46,6 @@ MEMBERSHIP_PLANS = {
     },
     'family': {
         'name': 'Family Membership',
-        'price_id': 'price_xxxx_family',  # Replace with your actual price ID from Stripe
         'price': 10000,  # $100.00
         'interval': 'month',
         'features': [
@@ -81,10 +78,43 @@ def create_checkout_session():
     plan = MEMBERSHIP_PLANS[plan_id]
     
     try:
+        # Create product and price dynamically if they don't exist
+        product_name = f"PrimeCourt {plan['name']}"
+        
+        # Check if product exists, create if not
+        products = stripe.Product.list(limit=100)
+        product = None
+        for p in products.data:
+            if p.name == product_name:
+                product = p
+                break
+        
+        if not product:
+            product = stripe.Product.create(
+                name=product_name,
+                description=f"Monthly subscription for {plan['name']}"
+            )
+        
+        # Check if price exists, create if not
+        prices = stripe.Price.list(product=product.id, limit=100)
+        price = None
+        for p in prices.data:
+            if p.unit_amount == plan['price'] and p.recurring.interval == plan['interval']:
+                price = p
+                break
+        
+        if not price:
+            price = stripe.Price.create(
+                product=product.id,
+                unit_amount=plan['price'],
+                currency='usd',
+                recurring={'interval': plan['interval']}
+            )
+        
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             line_items=[{
-                'price': plan['price_id'],
+                'price': price.id,
                 'quantity': 1,
             }],
             mode='subscription',
@@ -145,6 +175,23 @@ def payment_success():
     return redirect(url_for('profile'))
 
 
+
+@app.route('/test-email')
+def test_email():
+    """Test email sending functionality"""
+    from routes import send_email_async, EMAIL_USER
+    try:
+        # Send a test email to the admin email
+        test_recipient = EMAIL_USER  # Sending to yourself for testing
+        send_email_async(
+            "PrimeCourt Arena - Test Email",
+            test_recipient,
+            "<h2>🎾 Test Email from PrimeCourt Arena</h2><p>If you're seeing this, email is working correctly!</p>",
+            "Test Email from PrimeCourt Arena\n\nIf you're seeing this, email is working correctly!"
+        )
+        return "Test email sent! Check your inbox (and spam folder)."
+    except Exception as e:
+        return f"Error sending test email: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')

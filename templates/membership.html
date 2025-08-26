@@ -6,7 +6,7 @@
     <p class="text-center" style="margin-bottom: 2rem;">Choose the perfect membership plan for your needs</p>
     
     <div class="pricing-grid">
-        {% for plan_id, plan in config.MEMBERSHIP_PLANS.items() %}
+        {% for plan_id, plan in membership_plans.items() %}
         <div class="pricing-card {% if plan_id == 'premium' %}featured{% endif %}">
             {% if plan_id == 'premium' %}
             <div class="popular-tag">MOST POPULAR</div>

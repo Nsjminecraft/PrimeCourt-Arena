@@ -18,12 +18,12 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--text-color);
-    padding-top: 80px; /* Add this line */
+    padding-top: 80px; /* match navbar height + breathing room */
 }
 
 .container {
     width: 100%;
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
 }
@@ -54,7 +54,7 @@ img {
 
 /* Navigation */
 .navbar {
-    height: 50px;
+    height: 64px;
     padding: 0;
     display: flex;
     align-items: center;
@@ -124,6 +124,18 @@ img {
     gap: 18px;
     font-size: 1rem;
     margin-left: auto; /* Add this line */
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+
+/* Prevent long usernames from breaking the navbar */
+.nav-links li span {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .nav-links li {
@@ -160,7 +172,7 @@ img {
     display: flex;
     align-items: center;
     text-align: center;
-    padding-top: 80px;
+    padding-top: 50px; /* reduced padding to push hero up */
 }
 
 .hero-content {
@@ -571,7 +583,7 @@ footer p {
     }
     .nav-links {
         position: fixed;
-        top: 56px;
+        top: 64px;
         right: 0;
         background: #fff;
         flex-direction: column;

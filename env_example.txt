@@ -1,0 +1,14 @@
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=noreply@primecourt.com
+
+# Reminder System Security
+REMINDER_SECRET=your-secret-key-here
+
+# Note: For Gmail, you need to:
+# 1. Enable 2-factor authentication
+# 2. Generate an "App Password" 
+# 3. Use that app password instead of your regular password

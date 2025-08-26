@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Schedule Management</h1>
+        <div class="actions">
+            <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">Back to Admin</a>
+        </div>
+    </div>
+
+    <div class="admin-grid">
+        <!-- Set No Classes -->
+        <div class="admin-card">
+            <h3><i class="fas fa-calendar-times"></i> Set No Classes Day</h3>
+            <form method="post" class="form">
+                <input type="hidden" name="action" value="set_no_classes">
+                <div class="form-group">
+                    <label for="date">Select Date:</label>
+                    <select name="date" id="date" required>
+                        {% for date_info in future_dates %}
+                            <option value="{{ date_info.date }}">{{ date_info.formatted }} ({{ date_info.day_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reason">Reason (optional):</label>
+                    <input type="text" name="reason" id="reason" placeholder="e.g., Labor Day, Holiday, etc.">
+                </div>
+                <button type="submit" class="btn btn-primary">Set No Classes</button>
+            </form>
+        </div>
+
+        <!-- Remove No Classes -->
+        <div class="admin-card">
+            <h3><i class="fas fa-calendar-check"></i> Remove No Classes</h3>
+            <form method="post" class="form">
+                <input type="hidden" name="action" value="remove_no_classes">
+                <div class="form-group">
+                    <label for="remove_date">Select Date:</label>
+                    <select name="date" id="remove_date" required>
+                        {% for setting in schedule_settings %}
+                            {% if setting.no_classes %}
+                                <option value="{{ setting.date }}">{{ setting.date }} - {{ setting.reason or 'No Classes' }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-warning">Remove No Classes</button>
+            </form>
+        </div>
+
+        <!-- Custom Time Slots -->
+        <div class="admin-card">
+            <h3><i class="fas fa-clock"></i> Custom Time Slots</h3>
+            <form method="post" class="form">
+                <input type="hidden" name="action" value="set_time_slots">
+                <div class="form-group">
+                    <label for="custom_date">Select Date:</label>
+                    <select name="date" id="custom_date" required>
+                        {% for date_info in future_dates %}
+                            <option value="{{ date_info.date }}">{{ date_info.formatted }} ({{ date_info.day_name }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Available Time Slots:</label>
+                    <div class="time-slots-grid">
+                        <label><input type="checkbox" name="available_slots" value="9:00 AM - 10:00 AM"> 9:00 AM - 10:00 AM</label>
+                        <label><input type="checkbox" name="available_slots" value="10:00 AM - 11:00 AM"> 10:00 AM - 11:00 AM</label>
+                        <label><input type="checkbox" name="available_slots" value="11:00 AM - 12:00 PM"> 11:00 AM - 12:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="12:00 PM - 1:00 PM"> 12:00 PM - 1:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="1:00 PM - 2:00 PM"> 1:00 PM - 2:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="2:00 PM - 3:00 PM"> 2:00 PM - 3:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="3:00 PM - 4:00 PM"> 3:00 PM - 4:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="4:00 PM - 5:00 PM"> 4:00 PM - 5:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="5:00 PM - 6:00 PM"> 5:00 PM - 6:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="6:00 PM - 7:00 PM"> 6:00 PM - 7:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="7:00 PM - 8:00 PM"> 7:00 PM - 8:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="8:00 PM - 9:00 PM"> 8:00 PM - 9:00 PM</label>
+                        <label><input type="checkbox" name="available_slots" value="9:00 PM - 10:00 PM"> 9:00 PM - 10:00 PM</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Time Slots</button>
+            </form>
+        </div>
+
+        <!-- Reset Time Slots -->
+        <div class="admin-card">
+            <h3><i class="fas fa-undo"></i> Reset to Default</h3>
+            <form method="post" class="form">
+                <input type="hidden" name="action" value="reset_time_slots">
+                <div class="form-group">
+                    <label for="reset_date">Select Date:</label>
+                    <select name="date" id="reset_date" required>
+                        {% for setting in schedule_settings %}
+                            {% if setting.custom_time_slots %}
+                                <option value="{{ setting.date }}">{{ setting.date }} - Custom Slots</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-secondary">Reset to Default</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Current Schedule Overview -->
+    <div class="admin-card">
+        <h3><i class="fas fa-list"></i> Current Schedule Settings</h3>
+        {% if schedule_settings %}
+            <table class="table">
+                <thead>
+                    <tr><th>Date</th><th>Day</th><th>Status</th><th>Details</th><th>Last Updated</th></tr>
+                </thead>
+                <tbody>
+                    {% for setting in schedule_settings %}
+                        <tr>
+                            <td>{{ setting.date }}</td>
+                            <td>{{ setting.date|strptime('%Y-%m-%d')|strftime('%A') }}</td>
+                            <td>
+                                {% if setting.no_classes %}
+                                    <span class="badge badge-danger">No Classes</span>
+                                {% elif setting.custom_time_slots %}
+                                    <span class="badge badge-warning">Custom Slots</span>
+                                {% else %}
+                                    <span class="badge badge-success">Default</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if setting.no_classes %}
+                                    {{ setting.reason or 'No Classes' }}
+                                {% elif setting.custom_time_slots %}
+                                    {{ setting.custom_time_slots|length }} custom slots
+                                {% else %}
+                                    All slots available
+                                {% endif %}
+                            </td>
+                            <td>{{ setting.updated_at.strftime('%Y-%m-%d %H:%M') if setting.updated_at else 'N/A' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No custom schedule settings configured. All days use default time slots.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.admin-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:24px; margin-bottom:32px; }
+.admin-card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.form-group { margin-bottom:16px; }
+.form-group label { display:block; margin-bottom:6px; font-weight:600; }
+.form-group input, .form-group select { width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; }
+.time-slots-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:8px; max-height:300px; overflow-y:auto; }
+.time-slots-grid label { display:flex; align-items:center; gap:8px; font-weight:normal; }
+.badge { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+.badge-danger { background:#fee2e2; color:#dc2626; }
+.badge-warning { background:#fef3c7; color:#d97706; }
+.badge-success { background:#d1fae5; color:#059669; }
+.table { width:100%; border-collapse:collapse; margin-top:16px; }
+.table th, .table td { text-align:left; padding:8px 12px; border-bottom:1px solid #e5e7eb; }
+.table thead th { background:#f8fafc; font-weight:600; }
+</style>
+{% endblock %}

@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="change-header">
+        <h1>Change Your Membership</h1>
+        <p class="subtitle">Upgrade to more features or downgrade to save money</p>
+    </div>
+
+    {% if current_membership.plan %}
+    <div class="current-plan-card">
+        <h3><i class="fas fa-info-circle"></i> Your Current Plan</h3>
+        <div class="current-plan-details">
+            <div class="plan-name">{{ current_plan_name }}</div>
+            <div class="plan-price">${{ "%.2f"|format(current_plan_price / 100) }}/month</div>
+            <div class="plan-status">
+                <span class="status-badge active">
+                    <i class="fas fa-check-circle"></i> Active
+                </span>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="plan-options">
+        <h3>Available Plans</h3>
+        <p class="plan-note">Select a plan below to change your membership</p>
+        
+        {% if all_plans %}
+        <div class="plans-grid">
+            {% for plan_id, plan in all_plans.items() %}
+            <div class="plan-card {% if plan.is_upgrade %}upgrade-plan{% else %}downgrade-plan{% endif %}">
+                <div class="plan-header">
+                    <div class="plan-type-badge {% if plan.is_upgrade %}upgrade{% else %}downgrade{% endif %}">
+                        {% if plan.is_upgrade %}
+                            <i class="fas fa-arrow-up"></i> Upgrade
+                        {% else %}
+                            <i class="fas fa-arrow-down"></i> Downgrade
+                        {% endif %}
+                    </div>
+                    <h4>{{ plan.name }}</h4>
+                    <div class="plan-price">
+                        ${{ "%.2f"|format(plan.price / 100) }}<span>/month</span>
+                    </div>
+                    <div class="price-difference {% if plan.is_upgrade %}positive{% else %}negative{% endif %}">
+                        {% if plan.is_upgrade %}
+                            +${{ "%.2f"|format(plan.price_difference / 100) }}/month
+                        {% else %}
+                            -${{ "%.2f"|format(plan.price_difference / 100) }}/month
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <ul class="plan-features">
+                    {% for feature in plan.features %}
+                    <li><i class="fas fa-check"></i> {{ feature }}</li>
+                    {% endfor %}
+                </ul>
+                
+                <form action="{{ url_for('change_membership') }}" method="POST">
+                    <input type="hidden" name="plan_id" value="{{ plan_id }}">
+                    <button type="submit" class="btn btn-change {% if plan.is_upgrade %}btn-upgrade{% else %}btn-downgrade{% endif %}">
+                        {% if plan.is_upgrade %}
+                            <i class="fas fa-arrow-up"></i> Upgrade to {{ plan.name }}
+                        {% else %}
+                            <i class="fas fa-arrow-down"></i> Downgrade to {{ plan.name }}
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="no-changes">
+            <i class="fas fa-crown"></i>
+            <h4>No Other Plans Available</h4>
+            <p>You currently have the only membership option available.</p>
+            <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Profile
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="change-benefits">
+        <h3>Why Change Your Plan?</h3>
+        <div class="benefits-grid">
+            <div class="benefit-item">
+                <i class="fas fa-arrow-up"></i>
+                <h4>Upgrade Benefits</h4>
+                <p>Get more features, priority access, and better discounts</p>
+            </div>
+            <div class="benefit-item">
+                <i class="fas fa-arrow-down"></i>
+                <h4>Downgrade Benefits</h4>
+                <p>Save money while keeping essential features</p>
+            </div>
+            <div class="benefit-item">
+                <i class="fas fa-sync-alt"></i>
+                <h4>Flexible Changes</h4>
+                <p>Change your plan anytime to match your current needs</p>
+            </div>
+            <div class="benefit-item">
+                <i class="fas fa-calendar-alt"></i>
+                <h4>Monthly Billing</h4>
+                <p>Changes take effect immediately with your next billing cycle</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="change-actions">
+        <a href="{{ url_for('profile') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Profile
+        </a>
+        <a href="{{ url_for('membership') }}" class="btn btn-primary">
+            <i class="fas fa-eye"></i> View All Plans
+        </a>
+    </div>
+</div>
+
+<style>
+.change-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.change-header h1 {
+    color: var(--primary-color);
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    color: var(--text-light);
+}
+
+.current-plan-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 3rem;
+    text-align: center;
+}
+
+.current-plan-card h3 {
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.current-plan-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+}
+
+.plan-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.plan-price {
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.status-badge.active {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.plan-options {
+    margin-bottom: 3rem;
+}
+
+.plan-options h3 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.plan-note {
+    text-align: center;
+    color: var(--text-light);
+    margin-bottom: 2rem;
+}
+
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.plan-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    border: 1px solid #eaeaea;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.plan-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.upgrade-plan::before {
+    background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+}
+
+.downgrade-plan::before {
+    background: linear-gradient(90deg, #28a745, #20c997);
+}
+
+.plan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+}
+
+.plan-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.plan-type-badge {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.plan-type-badge.upgrade {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.plan-type-badge.downgrade {
+    background: #28a745;
+    color: white;
+}
+
+.plan-header h4 {
+    color: var(--primary-color);
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.plan-price {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+.plan-price span {
+    font-size: 1rem;
+    color: var(--text-light);
+    font-weight: 400;
+}
+
+.price-difference {
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: inline-block;
+}
+
+.price-difference.positive {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.price-difference.negative {
+    background: #28a745;
+    color: white;
+}
+
+.plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0;
+}
+
+.plan-features li {
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.plan-features li i {
+    color: var(--secondary-color);
+    font-size: 1.1rem;
+}
+
+.btn-change {
+    width: 100%;
+    border: none;
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.btn-upgrade {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+}
+
+.btn-upgrade:hover {
+    background: linear-gradient(135deg, #154a7a, #e65a1f);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.btn-downgrade {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+}
+
+.btn-downgrade:hover {
+    background: linear-gradient(135deg, #1e7e34, #1a9f7a);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.no-changes {
+    text-align: center;
+    padding: 3rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+    border: 2px dashed #dee2e6;
+}
+
+.no-changes i {
+    font-size: 3rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+}
+
+.no-changes h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.no-changes p {
+    color: var(--text-light);
+    margin-bottom: 2rem;
+}
+
+.change-benefits {
+    margin-bottom: 3rem;
+}
+
+.change-benefits h3 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+}
+
+.benefit-item {
+    text-align: center;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+.benefit-item i {
+    font-size: 2.5rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+}
+
+.benefit-item h4 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.benefit-item p {
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+.change-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    text-align: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #154a7a;
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: #f8f9fa;
+    color: var(--text-color);
+    border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+    .plans-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .benefits-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .change-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .btn {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+</style>
+{% endblock %}
