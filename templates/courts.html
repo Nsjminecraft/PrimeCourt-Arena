@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 
+{% block head %}
+{{ super() }}
+<script src="https://js.stripe.com/v3/"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container section">
     <div class="section-header">
@@ -30,20 +35,19 @@
                                 Booked{% if is_booked.user_name %} by {{ is_booked.user_name }}{% endif %}
                             </span>
                         {% else %}
-                            <form method="post" action="{{ url_for('courts', date=date_str) }}">
-                                <input type="hidden" name="date" value="{{ date_str }}" />
-                                <input type="hidden" name="court_id" value="{{ court.id }}" />
-                                <input type="hidden" name="time_slot" value="{{ slot }}" />
-                                {% if session.user_id %}
-                                <button class="btn btn-primary btn-sm" type="submit">
-                                    <i class="fas fa-calendar-check"></i> Book
+                            {% if session.user_id %}
+                                <button class="btn btn-primary btn-sm book-slot" 
+                                        data-court-id="{{ court.id }}" 
+                                        data-court-name="{{ court.name }}" 
+                                        data-time-slot="{{ slot }}" 
+                                        data-date="{{ date_str }}">
+                                    <i class="fas fa-calendar-check"></i> Book for $15
                                 </button>
                                 {% else %}
                                 <a class="btn btn-secondary btn-sm" href="{{ url_for('login') }}">
                                     Log in to book
                                 </a>
                                 {% endif %}
-                            </form>
                         {% endif %}
                     </div>
                 </div>
@@ -69,5 +73,90 @@
 .slot-time { font-weight:600; }
 .status.booked { color:#b45309; font-weight:600; display:flex; align-items:center; gap:6px; }
 .btn-sm { padding:6px 10px; font-size:0.9rem; }
+.btn-sm:disabled { opacity:0.7; cursor:not-allowed; }
 </style>
+
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Stripe with your publishable key
+    const stripe = Stripe('{{ stripe_public_key }}');
+    
+    // Handle booking button clicks
+    document.querySelectorAll('.book-slot').forEach(button => {
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+            
+            const button = this;
+            const courtId = button.dataset.courtId;
+            const courtName = button.dataset.courtName;
+            const timeSlot = button.dataset.timeSlot;
+            const date = button.dataset.date;
+            
+            // Disable button to prevent multiple clicks
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-calendar-check"></i> Processing...';
+            
+            try {
+                // Create a payment session with Stripe
+                const response = await fetch('/create-court-booking-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        court_id: courtId,
+                        time_slot: timeSlot,
+                        date: date
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                if (!data.sessionId) {
+                    throw new Error('Failed to create payment session');
+                }
+                
+                // Redirect to Stripe Checkout
+                const result = await stripe.redirectToCheckout({
+                    sessionId: data.sessionId
+                });
+                
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
+                
+            } catch (error) {
+                console.error('Booking error:', error);
+                alert('Error: ' + error.message);
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-calendar-check"></i> Book for $15';
+            }
+        });
+    });
+    
+    // Show success message if redirected from Stripe
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment_success') === 'true') {
+        alert('Payment successful! Your court has been booked.');
+        // Remove the success parameter from URL
+        const newUrl = window.location.pathname + '?' + 
+            new URLSearchParams(Array.from(urlParams.entries())
+                .filter(([key]) => key !== 'payment_success')
+                .map(([k, v]) => [k, v].join('='))
+            ).toString();
+        window.history.replaceState({}, '', newUrl);
+    }
+});
+</script>
 {% endblock %}

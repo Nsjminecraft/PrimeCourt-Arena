@@ -5,8 +5,8 @@
     <div class="section-header">
         <h1>Admin Dashboard</h1>
         <div class="actions">
-            <a class="btn btn-primary" href="{{ url_for('admin_schedule') }}">
-                <i class="fas fa-calendar-alt"></i> Manage Schedule
+            <a class="btn btn-primary" href="{{ url_for('admin_users') }}">
+                <i class="fas fa-users"></i> Manage Users
             </a>
             <a class="btn btn-secondary" href="{{ url_for('profile') }}">
                 <i class="fas fa-arrow-left"></i> Back to Profile
@@ -15,93 +15,120 @@
     </div>
 
     <div class="admin-grid">
-        <!-- User Management -->
+        <!-- Quick Stats -->
         <div class="admin-card">
-            <h3><i class="fas fa-users"></i> User Management</h3>
-            <table class="table">
-                <thead><tr><th>Name</th><th>Email</th><th>Admin</th><th>Actions</th></tr></thead>
-                <tbody>
-                {% for u in users %}
-                    <tr>
-                        <td>{{ u.name }}</td>
-                        <td>{{ u.email }}</td>
-                        <td>
-                            {% if u.is_admin %}
-                                <span class="badge badge-success">Admin</span>
-                            {% else %}
-                                <span class="badge badge-secondary">User</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if u.is_admin %}
-                                {% if u._id|string != session.user_id %}
-                                    <a href="{{ url_for('demote_user', user_id=u._id) }}" 
-                                       class="btn btn-sm btn-warning"
-                                       onclick="return confirm('Demote this user from admin?')">
-                                        Demote
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">You</span>
-                                {% endif %}
-                            {% else %}
-                                <a href="{{ url_for('promote_user', user_id=u._id) }}" 
-                                   class="btn btn-sm btn-primary"
-                                   onclick="return confirm('Promote this user to admin?')">
-                                    Promote
-                                </a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <h3><i class="fas fa-chart-line"></i> Quick Stats</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ users|length }}</div>
+                    <div class="stat-label">Total Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ lesson_bookings|length }}</div>
+                    <div class="stat-label">Upcoming Lessons</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ court_bookings|length }}</div>
+                    <div class="stat-label">Court Bookings</div>
+                </div>
+            </div>
         </div>
 
-        <!-- Lesson Bookings -->
+        <!-- Quick Actions -->
         <div class="admin-card">
-            <h3><i class="fas fa-chalkboard-teacher"></i> Lesson Bookings</h3>
-            <table class="table">
-                <thead><tr><th>Date</th><th>Time</th><th>Type</th><th>Name</th><th>Email</th><th>Recurring</th></tr></thead>
-                <tbody>
-                {% for b in lesson_bookings %}
-                    <tr>
-                        <td>{{ b.date }}</td>
-                        <td>{{ b.time }}</td>
-                        <td>{{ b.lesson_type }}</td>
-                        <td>{{ b.name }}</td>
-                        <td>{{ b.email }}</td>
-                        <td>
-                            {% if b.recurring_id %}
-                                <span class="badge badge-info">
-                                    Week {{ b.week_number }}/{{ b.total_weeks }}
-                                </span>
-                            {% else %}
-                                <span class="text-muted">Single</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <h3><i class="fas fa-tachometer-alt"></i> Quick Actions</h3>
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('admin_users') }}" class="btn btn-primary">
+                    <i class="fas fa-users"></i> Manage Users
+                </a>
+                <a href="{{ url_for('admin_schedule') }}" class="btn btn-secondary">
+                    <i class="fas fa-calendar-alt"></i> Manage Schedule
+                </a>
+                <a href="{{ url_for('admin_pricing') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-tags"></i> Manage Pricing
+                </a>
+            </div>
+        </div>
+        <!-- Recent Lesson Bookings -->
+        <div class="admin-card">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Recent Lessons</h3>
+                <a href="{{ url_for('admin_schedule') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            {% if lesson_bookings %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Name</th>
+                                <th>Recurring</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in lesson_bookings|sort(attribute='date')|slice(5) %}
+                                <tr>
+                                    <td>{{ b.date }}</td>
+                                    <td>{{ b.time }}</td>
+                                    <td>{{ b.lesson_type }}</td>
+                                    <td>{{ b.name }}</td>
+                                    <td>
+                                        {% if b.recurring_id %}
+                                            <span class="badge bg-info">
+                                                Week {{ b.week_number }}/{{ b.total_weeks }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">Single</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">
+                    No upcoming lessons found.
+                </div>
+            {% endif %}
         </div>
 
-        <!-- Court Bookings -->
+        <!-- Recent Court Bookings -->
         <div class="admin-card">
-            <h3><i class="fas fa-basketball-ball"></i> Court Bookings</h3>
-            <table class="table">
-                <thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Name</th><th>Email</th></tr></thead>
-                <tbody>
-                {% for b in court_bookings %}
-                    <tr>
-                        <td>{{ b.date }}</td>
-                        <td>{{ b.time }}</td>
-                        <td>{{ b.court_id }}</td>
-                        <td>{{ b.user_name }}</td>
-                        <td>{{ b.user_email }}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0"><i class="fas fa-basketball-ball"></i> Recent Court Bookings</h3>
+                <a href="{{ url_for('courts') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            {% if court_bookings %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Court</th>
+                                <th>Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in court_bookings|sort(attribute='date')|slice(5) %}
+                                <tr>
+                                    <td>{{ b.date }}</td>
+                                    <td>{{ b.time }}</td>
+                                    <td>Court {{ b.court_id }}</td>
+                                    <td>{{ b.user_name }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">
+                    No court bookings found.
+                </div>
+            {% endif %}
         </div>
 
         <!-- Email Management -->
@@ -109,34 +136,233 @@
             <h3><i class="fas fa-envelope"></i> Email Management</h3>
             <div class="email-actions">
                 <a href="{{ url_for('send_reminders') }}?secret={{ config.REMINDER_SECRET if config.REMINDER_SECRET else 'test' }}" 
-                   class="btn btn-primary"
+                   class="btn btn-primary w-100 mb-2"
                    onclick="return confirm('Send reminder emails for tomorrow?')">
                     <i class="fas fa-bell"></i> Send Tomorrow's Reminders
                 </a>
-                <p class="email-info">
-                    <small>This will send reminder emails to all customers with bookings tomorrow.</small>
+                <p class="text-muted small mb-0">
+                    This will send reminder emails to all customers with bookings tomorrow.
                 </p>
             </div>
         </div>
     </div>
 </div>
 
+
 <style>
-.admin-grid { display:grid; grid-template-columns: 1fr; gap:24px; }
-@media (min-width: 1000px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
-.admin-card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
-.table { width:100%; border-collapse: collapse; }
-.table th, .table td { text-align:left; padding:8px 10px; border-bottom:1px solid #e5e7eb; white-space: nowrap; }
-.table thead th { background:#f8fafc; position: sticky; top:0; }
-.badge { padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600; }
-.badge-success { background:#d1fae5; color:#059669; }
-.badge-secondary { background:#e5e7eb; color:#374151; }
-.badge-info { background:#dbeafe; color:#1d4ed8; }
-.btn-sm { padding:4px 8px; font-size:12px; border-radius:4px; text-decoration:none; display:inline-block; }
-.btn-primary { background:white; color:#3b82f6; border:2px solid #3b82f6; }
-.btn-warning { background:#f59e0b; color:white; }
-.text-muted { color:#6b7280; font-style:italic; }
-.email-actions { text-align:center; padding:16px 0; }
-.email-info { margin-top:12px; color:#6b7280; }
+/* Grid Layout */
+.admin-grid { 
+    display: grid; 
+    grid-template-columns: 1fr; 
+    gap: 24px; 
+}
+@media (min-width: 1000px) { 
+    .admin-grid { 
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); 
+    } 
+}
+
+/* Cards */
+.admin-card { 
+    background: #fff; 
+    border-radius: 12px; 
+    padding: 20px; 
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.admin-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.stat-card {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e40af;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Tables */
+.table { 
+    width: 100%; 
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th, 
+.table td { 
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.table th { 
+    background: #f8fafc; 
+    position: sticky; 
+    top: 0;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+}
+
+/* Badges */
+.badge { 
+    padding: 4px 10px; 
+    border-radius: 999px; 
+    font-size: 12px; 
+    font-weight: 600; 
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.badge i {
+    font-size: 10px;
+}
+
+.bg-success { 
+    background: #d1fae5; 
+    color: #059669; 
+}
+
+.bg-secondary { 
+    background: #e5e7eb; 
+    color: #374151; 
+}
+
+.bg-info { 
+    background: #dbeafe; 
+    color: #1d4ed8; 
+}
+
+/* Buttons */
+.btn { 
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn-primary { 
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+    border-color: #2563eb;
+}
+
+.btn-outline-primary {
+    background: transparent;
+    color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.btn-outline-primary:hover {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-warning { 
+    background: #f59e0b; 
+    color: white; 
+    border-color: #f59e0b;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+    border-color: #d97706;
+}
+
+/* Utilities */
+.text-muted { 
+    color: #6b7280; 
+}
+
+/* Email Actions */
+.email-actions { 
+    padding: 8px 0; 
+}
+
+/* Responsive Tables */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Section Headers */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.section-header h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .actions {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        flex: 1 1 auto;
+        min-width: 120px;
+    }
+}
 </style>
 {% endblock %}

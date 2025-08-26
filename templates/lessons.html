@@ -1,11 +1,33 @@
 {% extends "base.html" %}
 
+{% block head %}
+{{ super() }}
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+  /* Hide only base-level flash alerts on this page; allow inline errors like #payment-error */
+  body > .alert { display: none !important; }
+  /* Ensure our payment error can display when needed */
+  #payment-error { display: none; }
+  #payment-error.show, #payment-error:not(.d-none) { display: block; }
+  /* Custom payment error styling (bootstrap-like) */
+  .payment-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+    color: #842029;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.25rem;
+  }
+</style>
+{% endblock %}
+
+{% block flashes %}{% endblock %}
+
 {% block content %}
-<div class="container">
-    <h2>Book a Badminton Lesson</h2>
-    {% if message %}
-        <div class="alert">{{ message }}</div>
-    {% endif %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Badminton Lessons</h1>
+        
+    </div>
 
     <h3>
         <form method="get" style="display:inline;">
@@ -73,43 +95,51 @@
             </div>
         {% else %}
             <h3>Available Slots for {{ selected_day.date }}</h3>
-            <form method="post">
+            <form id="lesson-booking-form">
                 <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
-                <label for="lesson_type">Lesson Type:</label>
-                <select name="lesson_type" id="lesson_type" required>
-                    <option value="private">Private (1 per slot)</option>
-                    <option value="group">Group (up to 5 per slot)</option>
-                </select>
-                <label for="slot_idx">Choose a Slot:</label>
-                <select name="slot_idx" id="slot_idx" required>
-                    {% for slot in selected_day.slots %}
-                        <option value="{{ loop.index0 }}"
-                            {% if slot.private %}disabled{% endif %}
-                            {% if slot.group|length >= 5 %}disabled{% endif %}
-                            {% if not slot.is_available %}disabled{% endif %}
-                            {% if slot.is_past %}disabled{% endif %}>
-                            {{ slot.time }}
-                            {% if slot.private %}(Private Booked){% endif %}
-                            {% if not slot.is_available %}(Not Available){% endif %}
-                            {% if slot.is_past %}(Past){% endif %}
-                            ({{ slot.group|length }}/5 Group)
-                        </option>
-                    {% endfor %}
-                </select>
-                <label for="recurring_weeks">Book for how many weeks?</label>
-                <select name="recurring_weeks" id="recurring_weeks">
-                    <option value="1">1 week (single lesson)</option>
-                    <option value="2">2 weeks</option>
-                    <option value="3">3 weeks</option>
-                    <option value="4">4 weeks (1 month)</option>
-                    <option value="8">8 weeks (2 months)</option>
-                    <option value="12">12 weeks (3 months)</option>
-                </select>
-                <label for="name">Your Name:</label>
-                <input type="text" name="name" id="name" required>
-                <label for="email">Your Email:</label>
-                <input type="email" name="email" id="email" required>
-                <button type="submit">Book Recurring Lessons</button>
+
+                <div class="form-group">
+                    <label for="lesson_type_select">Lesson Type:</label>
+                    <select name="lesson_type" id="lesson_type_select" class="form-control">
+                        <option value="private">Private (1 per slot)</option>
+                        <option value="group">Group</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="slot_idx_select">Choose a Slot</label>
+                    <select name="slot_idx" id="slot_idx_select" class="form-control">
+                        {% for slot in selected_day.slots %}
+                            {% set is_private = slot.private %}
+                            {% set is_group_full = not is_private and slot.group|length >= 5 %}
+                            {% set is_available = not (is_private or is_group_full or not slot.is_available or slot.is_past) %}
+                            <option value="{{ loop.index0 }}"
+                                    data-lesson-type="{{ 'private' if is_private else 'group' }}"
+                                    {% if not is_available %}disabled{% endif %}>
+                                {{ slot.time }} ({{ 'Private' if is_private else 'Group' }})
+                                {% if not is_available %}- Unavailable{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="student_name">Your Name:</label>
+                    <input type="text" id="student_name" name="student_name" class="form-control" placeholder="Your Name">
+                </div>
+
+                <div class="form-group">
+                    <label for="student_email">Your Email:</label>
+                    <input type="email" id="student_email" name="student_email" class="form-control" placeholder="name@example.com">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary" id="book-now-btn">
+                        <span class="btn-text">Book Slot</span>
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    </button>
+                    <div id="payment-error" class="payment-error mt-2 d-none"></div>
+                </div>
             </form>
         {% endif %}
     {% endif %}
@@ -117,6 +147,66 @@
 {% endblock %}
 
 <style>
+.section .alert { display: none !important; }
+.lesson-type-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.lesson-type-option {
+    position: relative;
+}
+
+.lesson-type-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.lesson-type-option label {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.lesson-type-option input[type="radio"]:checked + label {
+    border-color: #4CAF50;
+    background-color: #f0f9f0;
+}
+
+.lesson-type-option i {
+    font-size: 1.5rem;
+    margin-right: 15px;
+    color: #4CAF50;
+}
+
+.lesson-type-option span:not(.badge) {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.lesson-type-option .price {
+    font-weight: bold;
+    color: #28a745;
+    margin: 0 10px;
+}
+
+.lesson-type-option .badge {
+    background: #e9ecef;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
 .no-classes-alert {
     background: #fef2f2;
     border: 1px solid #fecaca;
@@ -135,4 +225,245 @@
     color: #7f1d1d;
     margin: 0;
 }
+
+.time-slots {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.time-slot-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+    min-height: 70px;
+}
+
+.time-slot-btn:hover:not(:disabled) {
+    border-color: #4CAF50;
+    background-color: #f8fff8;
+}
+
+.time-slot-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.time-slot-btn.selected {
+    border-color: #4CAF50;
+    background-color: #e8f5e9;
+}
+
+.time-slot-btn .time {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.badge {
+    font-size: 0.8em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-top: 3px;
+}
+
+.badge-private {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.badge-group {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.badge-unavailable {
+    font-size: 0.8em;
+    color: #9e9e9e;
+    margin-top: 3px;
+}
+
+#payment-error {
+    display: none;
+}
+
+.spinner-border {
+    margin-left: 5px;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #495057;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+    padding: 0.5rem 1.5rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary:hover {
+    background-color: #3d8b40;
+    border-color: #3d8b40;
+}
+
+.btn-primary:disabled {
+    background-color: #81c784;
+    border-color: #81c784;
+    cursor: not-allowed;
+}
+
+.alert {
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+
+.alert-danger {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+
+.alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.loading .btn-text {
+    visibility: hidden;
+}
+
+.loading .spinner-border {
+    display: inline-block !important;
+}
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Aggressively remove any flash/alert banners on this page except our payment error box
+        try {
+            document.querySelectorAll('.alert').forEach(a => {
+                if (a.id !== 'payment-error') a.remove();
+            });
+        } catch (e) {}
+        const stripe = Stripe('{{ stripe_public_key }}');
+        const form = document.getElementById('lesson-booking-form');
+        const bookNowBtn = document.getElementById('book-now-btn');
+        const errorDiv = document.getElementById('payment-error');
+        const lessonTypeSelect = document.getElementById('lesson_type_select');
+        const slotSelect = document.getElementById('slot_idx_select');
+        const studentNameInput = document.getElementById('student_name');
+        const studentEmailInput = document.getElementById('student_email');
+
+        function filterSlotsByType() {
+            const type = lessonTypeSelect.value;
+            let firstVisible = null;
+            Array.from(slotSelect.options).forEach(opt => {
+                const matches = opt.dataset.lessonType === type;
+                // Only hide non-matching types. Do NOT toggle disabled here so we keep server-side availability.
+                opt.hidden = !matches;
+                if (matches && !opt.disabled && !firstVisible) firstVisible = opt;
+            });
+            if (firstVisible) {
+                slotSelect.value = firstVisible.value;
+            }
+        }
+
+        // Initial filter
+        filterSlotsByType();
+        lessonTypeSelect.addEventListener('change', filterSlotsByType);
+
+        // Handle form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Reset error message
+            errorDiv.classList.add('d-none');
+        
+        // Show loading state
+        bookNowBtn.disabled = true;
+        bookNowBtn.classList.add('loading');
+        
+        try {
+            // Get form data
+            const formData = new FormData(form);
+            const data = {
+                day_idx: formData.get('day_idx'),
+                slot_idx: formData.get('slot_idx'),
+                lesson_type: formData.get('lesson_type'),
+                student_name: formData.get('student_name') || '',
+                student_email: formData.get('student_email') || ''
+            };
+            
+            // Create checkout session
+            const response = await fetch('/create-lesson-booking-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const session = await response.json();
+            
+            if (session.error) {
+                throw new Error(session.error);
+            }
+            
+            // Redirect to Stripe Checkout
+            const result = await stripe.redirectToCheckout({
+                sessionId: session.sessionId
+            });
+            
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+            
+        } catch (error) {
+            console.error('Error:', error);
+            errorDiv.textContent = error.message || 'An error occurred while processing your booking.';
+            errorDiv.classList.remove('d-none');
+            window.scrollTo({
+                top: errorDiv.offsetTop - 20,
+                behavior: 'smooth'
+            });
+        } finally {
+            // Reset button state
+            bookNowBtn.disabled = false;
+            bookNowBtn.classList.remove('loading');
+        }
+    });
+});
+</script>

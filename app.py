@@ -4,6 +4,7 @@ from flask import Flask, render_template, redirect, request, url_for, session, f
 from flask_pymongo import PyMongo
 import stripe
 from datetime import datetime, timedelta
+from bson import ObjectId
 
 # Load environment variables
 load_dotenv()
@@ -63,6 +64,10 @@ import routes
 @app.route('/')
 def index():
     return render_template('main.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
 
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
@@ -174,6 +179,58 @@ def payment_success():
     
     return redirect(url_for('profile'))
 
+@app.route('/court-booking-success')
+def court_booking_success():
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash('Invalid session', 'error')
+        return redirect(url_for('courts'))
+    
+    try:
+        # Verify the session with Stripe
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        
+        if checkout_session.payment_status != 'paid':
+            flash('Payment not completed', 'error')
+            return redirect(url_for('courts'))
+        
+        # Extract booking details from metadata
+        metadata = checkout_session.metadata
+        court_id = metadata.get('court_id')
+        date = metadata.get('date')
+        time_slot = metadata.get('time_slot')
+        user_id = metadata.get('user_id')
+        user_name = metadata.get('user_name')
+        user_email = metadata.get('user_email')
+        
+        # Create the court booking
+        court_booking = {
+            'date': date,
+            'court_id': court_id,
+            'time': time_slot,
+            'user_id': user_id,
+            'user_name': user_name,
+            'user_email': user_email,
+            'payment_intent': checkout_session.payment_intent,
+            'amount_paid': checkout_session.amount_total / 100,  # Convert back to dollars
+            'created_at': datetime.now(),
+            'status': 'confirmed'
+        }
+        
+        # Save to database
+        mongo.db.court_bookings.insert_one(court_booking)
+        
+        # Send confirmation email
+        details = f"<p><strong>Court:</strong> {court_id}</p>"
+        send_booking_confirmation_email("Court Booking", user_name, user_email, date, time_slot, details)
+        
+        flash('Court booked successfully!', 'success')
+        return redirect(url_for('courts', date=date))
+        
+    except Exception as e:
+        print(f"Error processing court booking success: {str(e)}")
+        flash('Your payment was successful, but there was an error completing your booking. Please contact support.', 'warning')
+        return redirect(url_for('courts'))
 
 
 @app.route('/test-email')

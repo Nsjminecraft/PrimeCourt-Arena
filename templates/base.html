@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    {% block flashes %}
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -18,6 +19,7 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+    {% endblock %}
     
     <nav class="navbar">
         <div class="container">
@@ -50,7 +52,7 @@
 
     {% endblock %}
     <script>
-        // Close menu when clicking outside
+        // Toggle mobile menu
         document.addEventListener('click', function(e) {
             const nav = document.querySelector('.nav-links');
             const toggle = document.querySelector('.navbar-toggle');
@@ -63,6 +65,10 @@
         document.addEventListener('DOMContentLoaded', function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
+                // Skip hidden or placeholder alerts
+                const hasContent = (alert.textContent || '').trim().length > 0;
+                const isHidden = alert.classList.contains('d-none') || alert.offsetParent === null;
+                if (!hasContent || isHidden) return;
                 // Add close button
                 const closeBtn = document.createElement('button');
                 closeBtn.className = 'alert-close';
@@ -75,11 +81,16 @@
 
                 // Auto-remove after 5 seconds
                 setTimeout(() => {
-                    alert.style.animation = 'fadeOut 0.5s ease-out forwards';
-                    setTimeout(() => alert.remove(), 500);
+                    // If user hasn't closed it yet, dismiss
+                    if (document.body.contains(alert)) {
+                        alert.style.animation = 'fadeOut 0.5s ease-out forwards';
+                        setTimeout(() => alert.remove(), 500);
+                    }
                 }, 5000);
             });
         });
     </script>
+    
+    {% block scripts %}{% endblock %}
 </body>
 </html>

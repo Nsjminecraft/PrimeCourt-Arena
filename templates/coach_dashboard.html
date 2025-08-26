@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Coach Dashboard</span>
+                    <p class="flow-text">Welcome back, {{ session.user_name }}!</p>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="section">
+                        <h5>Upcoming Lessons</h5>
+                        {% if coach_lessons %}
+                            <div class="collection">
+                                {% for lesson in coach_lessons %}
+                                <div class="collection-item">
+                                    <div class="row" style="margin-bottom: 0;">
+                                        <div class="col s8">
+                                            <span class="title">
+                                                {{ lesson.type|title }} Lesson
+                                                {% if lesson.student_name %}
+                                                    with {{ lesson.student_name }}
+                                                {% endif %}
+                                            </span>
+                                            <p>
+                                                <i class="material-icons tiny">event</i> 
+                                                {{ lesson.start_time.strftime('%A, %B %d, %Y') }}
+                                                <br>
+                                                <i class="material-icons tiny">schedule</i> 
+                                                {{ lesson.start_time.strftime('%I:%M %p') }} - {{ lesson.end_time.strftime('%I:%M %p') }}
+                                            </p>
+                                        </div>
+                                        <div class="col s4 right-align">
+                                            <a href="#" class="btn-small waves-effect waves-light">
+                                                <i class="material-icons left">edit</i>Edit
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="card-panel blue lighten-5">
+                                <p class="blue-text">You don't have any upcoming lessons scheduled.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <div class="section">
+                        <h5>Quick Actions</h5>
+                        <div class="row">
+                            <div class="col s12 m4">
+                                <a href="#" class="btn-large waves-effect waves-light full-width">
+                                    <i class="material-icons left">add_circle_outline</i>New Lesson
+                                </a>
+                            </div>
+                            <div class="col s12 m4">
+                                <a href="#" class="btn-large waves-effect waves-light full-width">
+                                    <i class="material-icons left">event_available</i>Set Availability
+                                </a>
+                            </div>
+                            <div class="col s12 m4">
+                                <a href="#" class="btn-large waves-effect waves-light full-width">
+                                    <i class="material-icons left">person</i>My Profile
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col s12 m6
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Recent Activity</span>
+                    <div class="collection">
+                        <div class="collection-item">
+                            <p>No recent activity</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Quick Stats</span>
+                    <div class="collection">
+                        <div class="collection-item">
+                            <div class="row" style="margin-bottom: 0;">
+                                <div class="col s8">Upcoming Lessons</div>
+                                <div class="col s4 right-align">
+                                    <span class="new badge blue" data-badge-caption="">{{ coach_lessons|length }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collection-item">
+                            <div class="row" style="margin-bottom: 0;">
+                                <div class="col s8">Students This Month</div>
+                                <div class="col s4 right-align">
+                                    <span class="new badge green" data-badge-caption="">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collection-item">
+                            <div class="row" style="margin-bottom: 0;">
+                                <div class="col s8">Total Lessons</div>
+                                <div class="col s4 right-align">
+                                    <span class="new badge orange" data-badge-caption="">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any JavaScript components
+    var elems = document.querySelectorAll('.tooltipped');
+    M.Tooltip.init(elems);
+    
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+});
+</script>
+{% endblock %}
+
+{% endblock %}

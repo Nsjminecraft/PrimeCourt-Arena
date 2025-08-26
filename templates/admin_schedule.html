@@ -19,7 +19,15 @@
                     <label for="date">Select Date:</label>
                     <select name="date" id="date" required>
                         {% for date_info in future_dates %}
-                            <option value="{{ date_info.date }}">{{ date_info.formatted }} ({{ date_info.day_name }})</option>
+                            {% set is_no_class = false %}
+                            {% for setting in schedule_settings %}
+                                {% if setting.date == date_info.date and setting.no_classes %}
+                                    {% set is_no_class = true %}
+                                {% endif %}
+                            {% endfor %}
+                            <option value="{{ date_info.date }}" {% if is_no_class %}style="background-color: #f0f0f0; text-decoration: line-through;"{% endif %}>
+                                {{ date_info.formatted }} ({{ date_info.day_name }}){% if is_no_class %} - No Classes{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -59,7 +67,15 @@
                     <label for="custom_date">Select Date:</label>
                     <select name="date" id="custom_date" required>
                         {% for date_info in future_dates %}
-                            <option value="{{ date_info.date }}">{{ date_info.formatted }} ({{ date_info.day_name }})</option>
+                            {% set is_no_class = false %}
+                            {% for setting in schedule_settings %}
+                                {% if setting.date == date_info.date and setting.no_classes %}
+                                    {% set is_no_class = true %}
+                                {% endif %}
+                            {% endfor %}
+                            <option value="{{ date_info.date }}" {% if is_no_class %}style="background-color: #f0f0f0; text-decoration: line-through;"{% endif %}>
+                                {{ date_info.formatted }} ({{ date_info.day_name }}){% if is_no_class %} - No Classes{% endif %}
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -95,7 +111,9 @@
                     <select name="date" id="reset_date" required>
                         {% for setting in schedule_settings %}
                             {% if setting.custom_time_slots %}
-                                <option value="{{ setting.date }}">{{ setting.date }} - Custom Slots</option>
+                                <option value="{{ setting.date }}" {% if setting.no_classes %}style="background-color: #f0f0f0; text-decoration: line-through;"{% endif %}>
+                                    {{ setting.date }} - {% if setting.no_classes %}No Classes{% else %}Custom Slots{% endif %}
+                                </option>
                             {% endif %}
                         {% endfor %}
                     </select>
@@ -117,7 +135,7 @@
                     {% for setting in schedule_settings %}
                         <tr>
                             <td>{{ setting.date }}</td>
-                            <td>{{ setting.date|strptime('%Y-%m-%d')|strftime('%A') }}</td>
+                            <td>{{ setting.date|format_datetime('%A') }}</td>
                             <td>
                                 {% if setting.no_classes %}
                                     <span class="badge badge-danger">No Classes</span>
@@ -136,7 +154,7 @@
                                     All slots available
                                 {% endif %}
                             </td>
-                            <td>{{ setting.updated_at.strftime('%Y-%m-%d %H:%M') if setting.updated_at else 'N/A' }}</td>
+                            <td>{% if setting.updated_at %}{{ setting.updated_at|format_datetime }}{% else %}N/A{% endif %}</td>
                         </tr>
                     {% endfor %}
                 </tbody>

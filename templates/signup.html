@@ -1,28 +1,57 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container section">
-    <h2>Sign Up</h2>
-    <form method="post" onsubmit="return checkPasswords();">
-        <label>Name:</label>
-        <input type="text" name="name" required>
-        <label>Email:</label>
-        <input type="email" name="email" required>
-        <label>Password:</label>
-        <input type="password" name="password" id="password" required>
-        <label>Confirm Password:</label>
-        <input type="password" name="confirm_password" id="confirm_password" required>
-        <button type="submit">Sign Up</button>
+<div class="container signup-container">
+    <h2>Create an Account</h2>
+    <form method="post" onsubmit="return checkPasswords();" class="signup-form">
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+        {% if 'is_admin' in session and session.is_admin %}
+        <div class="form-group form-checkbox">
+            <label>
+                <input type="checkbox" name="is_coach" value="yes">
+                Create as Coach Account
+            </label>
+            <span class="form-text">
+                Coach accounts will be created in a pending state and need to be activated.
+            </span>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn">Sign Up</button>
     </form>
-    <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+    <p style="margin-top: 20px;">
+        Already have an account? <a href="{{ url_for('login') }}">Log in here</a>
+    </p>
 </div>
+
 <script>
 function checkPasswords() {
-    var pw = document.getElementById('password').value;
-    var cpw = document.getElementById('confirm_password').value;
-    if (pw !== cpw) {
+    var password = document.getElementById('password');
+    var confirm = document.getElementById('confirm_password');
+    
+    if (password.value !== confirm.value) {
         alert('Passwords do not match!');
         return false;
     }
+    
+    if (password.value.length < 8) {
+        alert('Password must be at least 8 characters long!');
+        return false;
+    }
+    
     return true;
 }
 </script>

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Manage Coach Accounts</span>
+                    
+                    <!-- Pending Coach Approvals -->
+                    <div class="section">
+                        <h5>Pending Approvals</h5>
+                        {% if pending_coaches %}
+                            <div class="collection">
+                                {% for coach in pending_coaches %}
+                                <div class="collection-item">
+                                    <div class="row" style="margin-bottom: 0;">
+                                        <div class="col s8">
+                                            <span class="title">{{ coach.name }}</span>
+                                            <p>
+                                                <i class="material-icons tiny">email</i> {{ coach.email }}<br>
+                                                <i class="material-icons tiny">person</i> 
+                                                {% if coach.bio %}{{ coach.bio }}{% else %}No bio provided{% endif %}
+                                            </p>
+                                            {% if coach.specialties %}
+                                            <div class="chip-container" style="margin-top: 8px;">
+                                                {% for specialty in coach.specialties %}
+                                                <div class="chip">{{ specialty }}</div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col s4 right-align">
+                                            <a href="{{ url_for('approve_coach', user_id=coach._id) }}" 
+                                               class="btn-small green waves-effect waves-light">
+                                                <i class="material-icons left">check</i>Approve
+                                            </a>
+                                            <a href="{{ url_for('reject_coach', user_id=coach._id) }}" 
+                                               class="btn-small red waves-effect waves-light"
+                                               onclick="return confirm('Are you sure you want to reject this coach? This cannot be undone.');">
+                                                <i class="material-icons left">close</i>Reject
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="card-panel blue lighten-5">
+                                <p class="blue-text">No pending coach approvals.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <!-- Active Coaches -->
+                    <div class="section">
+                        <h5>Active Coaches</h5>
+                        {% if active_coaches %}
+                            <table class="highlight responsive-table">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Specialties</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for coach in active_coaches %}
+                                    <tr>
+                                        <td>{{ coach.name }}</td>
+                                        <td>{{ coach.email }}</td>
+                                        <td>
+                                            {% if coach.specialties %}
+                                                {{ coach.specialties|join(', ') }}
+                                            {% else %}
+                                                None specified
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="#" class="btn-small blue waves-effect waves-light">
+                                                <i class="material-icons">edit</i>
+                                            </a>
+                                            <a href="#" class="btn-small red waves-effect waves-light"
+                                               onclick="return confirm('Are you sure you want to deactivate this coach?');">
+                                                <i class="material-icons">person_remove</i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <div class="card-panel blue lighten-5">
+                                <p class="blue-text">No active coaches found.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    <!-- Add New Coach -->
+                    <div class="section">
+                        <h5>Add New Coach</h5>
+                        <div class="card-panel">
+                            <p>To add a new coach, ask them to sign up using the coach registration option on the signup page.</p>
+                            <p>Alternatively, you can <a href="{{ url_for('signup') }}" class="btn-small">Create Account</a> on their behalf.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any JavaScript components
+    var elems = document.querySelectorAll('.tooltipped');
+    M.Tooltip.init(elems);
+    
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Initialize data tables
+    var tables = document.querySelectorAll('table');
+    M.DataTable.init(tables, {
+        responsive: true,
+        pageLength: 10
+    });
+});
+</script>
+{% endblock %}
+
+{% endblock %}
