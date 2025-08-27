@@ -4,54 +4,107 @@
 {{ super() }}
 <script src="https://js.stripe.com/v3/"></script>
 <style>
-  /* Hide only base-level flash alerts on this page; allow inline errors like #payment-error */
-  body > .alert { display: none !important; }
-  /* Ensure our payment error can display when needed */
-  #payment-error { display: none; }
-  #payment-error.show, #payment-error:not(.d-none) { display: block; }
-  /* Custom payment error styling (bootstrap-like) */
-  .payment-error {
-    background-color: #f8d7da;
-    border: 1px solid #f5c2c7;
-    color: #842029;
-    padding: 0.75rem 1.25rem;
-    border-radius: 0.25rem;
+  /* Hide base-level flash alerts on this page when not showing booking result */
+  {% if not request.args.get('show_flash') %}
+  body > .container > .alert { display: none !important; }
+  {% endif %}
+
+  .calendar-arrow-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
   }
+  .calendar-table {
+      width: 100%;
+      text-align: center;
+  }
+  .calendar-day-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      background-color: #f0f0f0;
+      cursor: pointer;
+  }
+  .calendar-day-btn.active {
+      border-color: #007bff;
+      background-color: #e0efff;
+  }
+  .calendar-day-past {
+      background-color: #f8f9fa;
+      color: #6c757d;
+      cursor: not-allowed;
+  }
+  .lesson-type-option label {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border: 2px solid #dee2e6;
+      border-radius: 8px;
+      cursor: pointer;
+  }
+  .lesson-type-option input[type="radio"]:checked + label {
+      border-color: #4CAF50;
+      background-color: #f0f9f0;
+  }
+  .time-slots {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+  }
+  .time-slot-btn {
+      padding: 10px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+  }
+  .time-slot-btn.selected {
+      border-color: #4CAF50;
+      background-color: #e8f5e9;
+  }
+  .time-slot-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+  }
+  .loading .spinner-border { display: inline-block !important; }
+  .loading .btn-text { visibility: hidden; }
+  #payment-error:not(.d-none) { display: block; }
 </style>
 {% endblock %}
-
-{% block flashes %}{% endblock %}
 
 {% block content %}
 <div class="container section">
     <div class="section-header">
         <h1>Badminton Lessons</h1>
-        
+    </div>
+
+    <div id="booking-success-alert" class="alert alert-success d-none" role="alert">
+        <h4 class="alert-heading">Booking Successful!</h4>
+        <p>Your lesson has been successfully booked. A confirmation email has been sent to you. You can view your booking on your <a href="{{ url_for('profile') }}" class="alert-link">profile page</a>.</p>
+    </div>
+    <div id="booking-cancelled-alert" class="alert alert-warning d-none" role="alert">
+        Your booking was cancelled. You can try booking again anytime.
     </div>
 
     <h3>
-        <form method="get" style="display:inline;">
+        <form method="get" action="{{ url_for('lessons') }}" style="display:inline;">
             <input type="hidden" name="month" value="{{ month - 1 if month > 1 else 12 }}">
             <input type="hidden" name="year" value="{{ year if month > 1 else year - 1 }}">
             <button type="submit" class="calendar-arrow-btn">&#8592;</button>
         </form>
         {{ month_name }} {{ year }}
-        <form method="get" style="display:inline;">
+        <form method="get" action="{{ url_for('lessons') }}" style="display:inline;">
             <input type="hidden" name="month" value="{{ month + 1 if month < 12 else 1 }}">
             <input type="hidden" name="year" value="{{ year if month < 12 else year + 1 }}">
             <button type="submit" class="calendar-arrow-btn">&#8594;</button>
         </form>
     </h3>
-    <table class="calendar-table">
+
+    <table class="calendar-table my-4">
         <thead>
             <tr>
-                <th>Sun</th>
-                <th>Mon</th>
-                <th>Tue</th>
-                <th>Wed</th>
-                <th>Thu</th>
-                <th>Fri</th>
-                <th>Sat</th>
+                <th>Sun</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
             </tr>
         </thead>
         <tbody>
@@ -63,19 +116,14 @@
                     {% if week == 0 and wd < weekday %}
                         <td></td>
                     {% elif ns.day_ptr < lesson_days|length %}
-                        {% set day_date = lesson_days[ns.day_ptr].date %}
-                        {% set is_past = day_date < today_str %}
+                        {% set day = lesson_days[ns.day_ptr] %}
+                        {% set is_past = day.date < today_str %}
                         <td>
-                            <form method="get">
-                                <input type="hidden" name="day" value="{{ ns.day_ptr }}">
-                                <input type="hidden" name="month" value="{{ month }}">
-                                <input type="hidden" name="year" value="{{ year }}">
-                                <button type="submit"
-                                    class="calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past %} calendar-day-past{% endif %}"
-                                    {% if is_past %}disabled{% endif %}>
-                                    {{ lesson_days[ns.day_ptr].date.split('-')[2] }}
-                                </button>
-                            </form>
+                            <a href="{{ url_for('lessons', year=year, month=month, day=ns.day_ptr) }}" 
+                               class="btn calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past %} calendar-day-past{% endif %}" 
+                               {% if is_past %}aria-disabled="true" onclick="return false;"{% endif %}>
+                                {{ day.date.split('-')[2] }}
+                            </a>
                         </td>
                         {% set ns.day_ptr = ns.day_ptr + 1 %}
                     {% else %}
@@ -89,56 +137,55 @@
 
     {% if selected_day %}
         {% if selected_day.no_classes %}
-            <div class="no-classes-alert">
-                <h3>No Classes on {{ selected_day.date }}</h3>
-                <p><strong>Reason:</strong> {{ selected_day.no_classes_reason or 'Holiday' }}</p>
-            </div>
+            <div class="alert alert-info">No classes on this day: {{ selected_day.no_classes_reason }}</div>
         {% else %}
-            <h3>Available Slots for {{ selected_day.date }}</h3>
             <form id="lesson-booking-form">
                 <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
+                <input type="hidden" name="slot_idx" id="slot_idx_select" value="">
 
                 <div class="form-group">
-                    <label for="lesson_type_select">Lesson Type:</label>
-                    <select name="lesson_type" id="lesson_type_select" class="form-control">
-                        <option value="private">Private (1 per slot)</option>
-                        <option value="group">Group</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="slot_idx_select">Choose a Slot</label>
-                    <select name="slot_idx" id="slot_idx_select" class="form-control">
-                        {% for slot in selected_day.slots %}
-                            {% set is_private = slot.private %}
-                            {% set is_group_full = not is_private and slot.group|length >= 5 %}
-                            {% set is_available = not (is_private or is_group_full or not slot.is_available or slot.is_past) %}
-                            <option value="{{ loop.index0 }}"
-                                    data-lesson-type="{{ 'private' if is_private else 'group' }}"
-                                    {% if not is_available %}disabled{% endif %}>
-                                {{ slot.time }} ({{ 'Private' if is_private else 'Group' }})
-                                {% if not is_available %}- Unavailable{% endif %}
-                            </option>
+                    <h5>1. Select Lesson Type</h5>
+                    <div class="lesson-type-selector">
+                        {% for type in lesson_types %}
+                        <div class="lesson-type-option">
+                            <input type="radio" id="lesson_type_{{ type.id }}" name="lesson_type" value="{{ type.id }}" data-price="{{ type.price }}">
+                            <label for="lesson_type_{{ type.id }}">
+                                <i class="fas fa-user"></i>
+                                <span>{{ type.name }}</span>
+                                <span class="price">${{ "%.2f"|format(type.price) }}</span>
+                                <span class="badge">{{ type.capacity }} per slot</span>
+                            </label>
+                        </div>
                         {% endfor %}
-                    </select>
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="student_name">Your Name:</label>
-                    <input type="text" id="student_name" name="student_name" class="form-control" placeholder="Your Name">
+                    <h5>2. Choose a Slot</h5>
+                    <div class="time-slots">
+                        {% for slot in selected_day.slots %}
+                            <button type="button" class="btn time-slot-btn" data-slot-idx="{{ loop.index0 }}" data-lesson-type="{{ 'private' if slot.private else 'group' }}" {% if slot.is_past or not slot.is_available %}disabled{% endif %}>
+                                <div class="time">{{ slot.time }}</div>
+                                {% if slot.private %}<span class="badge badge-private">Private</span>{% endif %}
+                                {% if slot.group %}<span class="badge badge-group">{{ slot.group|length }} / 5</span>{% endif %}
+                                {% if slot.is_past or not slot.is_available %}<span class="badge-unavailable">Unavailable</span>{% endif %}
+                            </button>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="student_email">Your Email:</label>
-                    <input type="email" id="student_email" name="student_email" class="form-control" placeholder="name@example.com">
+                    <h5>3. Your Details</h5>
+                    <input type="text" id="student_name" name="student_name" class="form-control mb-2" placeholder="Your Name" value="{{ current_user.name if current_user.is_authenticated else '' }}" required>
+                    <input type="email" id="student_email" name="student_email" class="form-control" placeholder="Your Email" value="{{ current_user.email if current_user.is_authenticated else '' }}" required>
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="book-now-btn">
+                    <button type="submit" class="btn btn-primary" id="book-now-btn" disabled>
                         <span class="btn-text">Book Slot</span>
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                     </button>
-                    <div id="payment-error" class="payment-error mt-2 d-none"></div>
+                    <div id="payment-error" class="alert alert-danger mt-2 d-none"></div>
                 </div>
             </form>
         {% endif %}
@@ -146,312 +193,79 @@
 </div>
 {% endblock %}
 
-<style>
-.section .alert { display: none !important; }
-.lesson-type-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.lesson-type-option {
-    position: relative;
-}
-
-.lesson-type-option input[type="radio"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.lesson-type-option label {
-    display: flex;
-    align-items: center;
-    padding: 15px;
-    background: #f8f9fa;
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.lesson-type-option input[type="radio"]:checked + label {
-    border-color: #4CAF50;
-    background-color: #f0f9f0;
-}
-
-.lesson-type-option i {
-    font-size: 1.5rem;
-    margin-right: 15px;
-    color: #4CAF50;
-}
-
-.lesson-type-option span:not(.badge) {
-    flex-grow: 1;
-    font-weight: 500;
-}
-
-.lesson-type-option .price {
-    font-weight: bold;
-    color: #28a745;
-    margin: 0 10px;
-}
-
-.lesson-type-option .badge {
-    background: #e9ecef;
-    padding: 3px 8px;
-    border-radius: 10px;
-    font-size: 0.8rem;
-    color: #495057;
-}
-
-.no-classes-alert {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 8px;
-    padding: 20px;
-    text-align: center;
-    margin: 20px 0;
-}
-
-.no-classes-alert h3 {
-    color: #dc2626;
-    margin: 0 0 10px 0;
-}
-
-.no-classes-alert p {
-    color: #7f1d1d;
-    margin: 0;
-}
-
-.time-slots {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
-    margin: 15px 0;
-}
-
-.time-slot-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 10px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    text-align: center;
-    min-height: 70px;
-}
-
-.time-slot-btn:hover:not(:disabled) {
-    border-color: #4CAF50;
-    background-color: #f8fff8;
-}
-
-.time-slot-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.time-slot-btn.selected {
-    border-color: #4CAF50;
-    background-color: #e8f5e9;
-}
-
-.time-slot-btn .time {
-    font-weight: bold;
-    margin-bottom: 5px;
-}
-
-.badge {
-    font-size: 0.8em;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-top: 3px;
-}
-
-.badge-private {
-    background-color: #ffebee;
-    color: #c62828;
-}
-
-.badge-group {
-    background-color: #e3f2fd;
-    color: #1565c0;
-}
-
-.badge-unavailable {
-    font-size: 0.8em;
-    color: #9e9e9e;
-    margin-top: 3px;
-}
-
-#payment-error {
-    display: none;
-}
-
-.spinner-border {
-    margin-left: 5px;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-control {
-    display: block;
-    width: 100%;
-    padding: 0.375rem 0.75rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #495057;
-    background-color: #fff;
-    background-clip: padding-box;
-    border: 1px solid #ced4da;
-    border-radius: 0.25rem;
-    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
-}
-
-.btn-primary {
-    color: #fff;
-    background-color: #4CAF50;
-    border-color: #4CAF50;
-    padding: 0.5rem 1.5rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.btn-primary:hover {
-    background-color: #3d8b40;
-    border-color: #3d8b40;
-}
-
-.btn-primary:disabled {
-    background-color: #81c784;
-    border-color: #81c784;
-    cursor: not-allowed;
-}
-
-.alert {
-    padding: 0.75rem 1.25rem;
-    margin-bottom: 1rem;
-    border: 1px solid transparent;
-    border-radius: 0.25rem;
-}
-
-.alert-danger {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-}
-
-.alert-success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
-}
-
-.loading .btn-text {
-    visibility: hidden;
-}
-
-.loading .spinner-border {
-    display: inline-block !important;
-}
-</style>
-
+{% block scripts %}
+{{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Aggressively remove any flash/alert banners on this page except our payment error box
-        try {
-            document.querySelectorAll('.alert').forEach(a => {
-                if (a.id !== 'payment-error') a.remove();
-            });
-        } catch (e) {}
-        const stripe = Stripe('{{ stripe_public_key }}');
-        const form = document.getElementById('lesson-booking-form');
-        const bookNowBtn = document.getElementById('book-now-btn');
-        const errorDiv = document.getElementById('payment-error');
-        const lessonTypeSelect = document.getElementById('lesson_type_select');
-        const slotSelect = document.getElementById('slot_idx_select');
-        const studentNameInput = document.getElementById('student_name');
-        const studentEmailInput = document.getElementById('student_email');
+document.addEventListener('DOMContentLoaded', function() {
+    const stripe = Stripe('{{ stripe_public_key }}');
+    const form = document.getElementById('lesson-booking-form');
+    if (!form) return;
 
-        function filterSlotsByType() {
-            const type = lessonTypeSelect.value;
-            let firstVisible = null;
-            Array.from(slotSelect.options).forEach(opt => {
-                const matches = opt.dataset.lessonType === type;
-                // Only hide non-matching types. Do NOT toggle disabled here so we keep server-side availability.
-                opt.hidden = !matches;
-                if (matches && !opt.disabled && !firstVisible) firstVisible = opt;
-            });
-            if (firstVisible) {
-                slotSelect.value = firstVisible.value;
-            }
-        }
+    const bookNowBtn = document.getElementById('book-now-btn');
+    const errorDiv = document.getElementById('payment-error');
+    const studentNameInput = document.getElementById('student_name');
+    const studentEmailInput = document.getElementById('student_email');
+    const hiddenSlotInput = document.getElementById('slot_idx_select');
 
-        // Initial filter
-        filterSlotsByType();
-        lessonTypeSelect.addEventListener('change', filterSlotsByType);
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('status') === 'success') {
+        document.getElementById('booking-success-alert').classList.remove('d-none');
+    } else if (urlParams.get('status') === 'cancel') {
+        document.getElementById('booking-cancelled-alert').classList.remove('d-none');
+    }
 
-        // Handle form submission
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // Reset error message
-            errorDiv.classList.add('d-none');
-        
-        // Show loading state
-        bookNowBtn.disabled = true;
+    function updateButtonState() {
+        const lessonTypeSelected = document.querySelector('input[name="lesson_type"]:checked');
+        const slotSelected = document.querySelector('.time-slot-btn.selected');
+        const nameFilled = studentNameInput.value.trim() !== '';
+        const emailFilled = studentEmailInput.value.trim() !== '';
+        bookNowBtn.disabled = !(lessonTypeSelected && slotSelected && nameFilled && emailFilled);
+    }
+
+    document.querySelectorAll('input[name="lesson_type"]').forEach(radio => {
+        radio.addEventListener('change', updateButtonState);
+    });
+
+    document.querySelectorAll('.time-slot-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (this.disabled) return;
+            document.querySelectorAll('.time-slot-btn.selected').forEach(b => b.classList.remove('selected'));
+            this.classList.add('selected');
+            hiddenSlotInput.value = this.dataset.slotIdx;
+            updateButtonState();
+        });
+    });
+
+    studentNameInput.addEventListener('input', updateButtonState);
+    studentEmailInput.addEventListener('input', updateButtonState);
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
         bookNowBtn.classList.add('loading');
-        
-        try {
-            // Get form data
-            const formData = new FormData(form);
-            const data = {
-                day_idx: formData.get('day_idx'),
-                slot_idx: formData.get('slot_idx'),
-                lesson_type: formData.get('lesson_type'),
-                student_name: formData.get('student_name') || '',
-                student_email: formData.get('student_email') || ''
-            };
-            
-            // Create checkout session
-            const response = await fetch('/create-lesson-booking-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(data)
-            });
-            
-            const session = await response.json();
-            
+        bookNowBtn.disabled = true;
+        errorDiv.classList.add('d-none');
+
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
+        fetch('/create-lesson-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        })
+        .then(response => response.json())
+        .then(session => {
             if (session.error) {
                 throw new Error(session.error);
             }
-            
-            // Redirect to Stripe Checkout
-            const result = await stripe.redirectToCheckout({
-                sessionId: session.sessionId
-            });
-            
+            return stripe.redirectToCheckout({ sessionId: session.sessionId });
+        })
+        .then(result => {
             if (result.error) {
                 throw new Error(result.error.message);
             }
-            
-        } catch (error) {
+        })
+        .catch(error => {
             console.error('Error:', error);
             errorDiv.textContent = error.message || 'An error occurred while processing your booking.';
             errorDiv.classList.remove('d-none');
@@ -459,11 +273,12 @@
                 top: errorDiv.offsetTop - 20,
                 behavior: 'smooth'
             });
-        } finally {
-            // Reset button state
+        })
+        .finally(() => {
             bookNowBtn.disabled = false;
             bookNowBtn.classList.remove('loading');
-        }
+        });
     });
 });
 </script>
+{% endblock %}

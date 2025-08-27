@@ -35,7 +35,7 @@
                 </div>
                 <div class="info-item">
                     <span class="label">Plan:</span>
-                    <span class="value">{{ membership.plan|title }} Membership</span>
+                    <span class="value">{{ plan_name }}</span>
                 </div>
                 <div class="info-item">
                     <span class="label">Expires:</span>
@@ -53,33 +53,12 @@
                 <a href="{{ url_for('membership') }}" class="btn btn-primary">Get Membership</a>
             {% endif %}
         </div>
-
-        <!-- Payment History Card -->
-        <div class="profile-card">
-            <h3><i class="fas fa-credit-card"></i> Payment Information</h3>
-            
-            {% if membership.stripe_customer_id %}
-                <div class="info-item">
-                    <span class="label">Customer ID:</span>
-                    <span class="value">{{ membership.stripe_customer_id }}</span>
-                </div>
-                {% if membership.stripe_subscription_id %}
-                <div class="info-item">
-                    <span class="label">Subscription ID:</span>
-                    <span class="value">{{ membership.stripe_subscription_id }}</span>
-                </div>
-                {% endif %}
-            {% else %}
-                <p class="no-payment">No payment information available.</p>
-            {% endif %}
-        </div>
-
         <!-- Quick Actions Card -->
         <div class="profile-card">
             <h3><i class="fas fa-cogs"></i> Quick Actions</h3>
             <div class="action-buttons">
                 {% if is_active %}
-                    <a href="{{ url_for('change_membership') }}" class="btn btn-upgrade">
+                    <a href="{{ url_for('membership') }}" class="btn btn-upgrade">
                         <i class="fas fa-sync-alt"></i> Change Plan
                     </a>
                 {% else %}

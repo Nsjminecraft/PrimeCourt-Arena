@@ -1,16 +1,55 @@
-from flask import render_template, request, redirect, url_for, session, flash, jsonify
-from app import app, mongo
+from flask import render_template, request, redirect, url_for, flash, session, jsonify
+from app import app, mongo, stripe, stripe_public_key, MEMBERSHIP_PLANS
+
+LESSON_TYPES = {
+    'group': {'name': 'Group Lesson', 'price_per_hour': 2500, 'capacity': 6},
+    'private': {'name': 'Private Lesson', 'price_per_hour': 6000, 'capacity': 1},
+    'semi-private': {'name': 'Semi-Private Lesson', 'price_per_hour': 4000, 'capacity': 2},
+}
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
 from bson import ObjectId
 import datetime as dt  # Add this import for datetime operations
 import smtplib
-import stripe
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from threading import Thread
 from functools import wraps
+import stripe
+from dotenv import load_dotenv
+from zoneinfo import ZoneInfo
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize Stripe with environment variables
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+stripe_public_key = os.getenv('STRIPE_PUBLIC_KEY')
+
+# Helper: parse a time token like "9", "9 AM", "09:00", "9:00 AM"
+def _parse_time_token(token: str):
+    token = token.strip()
+    fmts = ["%I:%M %p", "%I %p", "%H:%M"]
+    for fmt in fmts:
+        try:
+            t = datetime.strptime(token, fmt)
+            return t.hour * 60 + t.minute
+        except Exception:
+            continue
+    return None
+
+# Helper: parse a time range to (start_minutes, end_minutes)
+def _parse_range_minutes(range_str: str):
+    parts = [p.strip() for p in str(range_str).split('-')]
+    if len(parts) != 2:
+        return None
+    s = _parse_time_token(parts[0])
+    e = _parse_time_token(parts[1])
+    if s is None or e is None:
+        return None
+    return s, e
 
 def admin_required(f):
     @wraps(f)
@@ -23,14 +62,10 @@ def admin_required(f):
 
 app.secret_key = "f=qSj{PuL:,&^IP^zgDL=ez@dcSM"
 
-# Initialize Stripe
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
-STRIPE_PUBLIC_KEY = os.getenv('STRIPE_PUBLIC_KEY')
-
-# Default lesson pricing (in cents)
+# Default lesson pricing (in dollars)
 DEFAULT_LESSON_PRICES = {
-    'private': 5000,  # $50.00
-    'group': 2500,    # $25.00
+    'private': 50.00,
+    'group': 25.00
 }
 
 def get_lesson_prices():
@@ -337,9 +372,9 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@app.route('/create-lesson-booking-session', methods=['POST'])
+@app.route('/create-lesson-booking', methods=['POST'])
 @login_required
-def create_lesson_booking_session():
+def create_lesson_booking():
     if 'user_id' not in session:
         return jsonify({'error': 'Please log in to book a lesson'}), 401
     
@@ -350,9 +385,6 @@ def create_lesson_booking_session():
         lesson_type = data.get('lesson_type')
         recurring_weeks = int(data.get('recurring_weeks', 1))
         
-        # Get current pricing
-        prices = get_lesson_prices()
-        
         # Validate lesson type
         if lesson_type not in ['private', 'group']:
             return jsonify({'error': 'Invalid lesson type'}), 400
@@ -362,8 +394,17 @@ def create_lesson_booking_session():
         if not user:
             return jsonify({'error': 'User not found'}), 404
         
+        # Get lesson prices
+        prices = get_lesson_prices()
+        
+        # Calculate total amount based on lesson type and number of weeks
+        amount = prices[lesson_type] * recurring_weeks
+        
         # Generate month slots to get the selected day
-        today = datetime.now()
+        # Use configured timezone locally in this function
+        app_tz = os.getenv('APP_TIMEZONE', 'America/New_York')
+        from zoneinfo import ZoneInfo as _ZoneInfo
+        today = datetime.now(_ZoneInfo(app_tz))
         lesson_days = generate_month_slots(today.year, today.month)
         
         if day_idx < 0 or day_idx >= len(lesson_days):
@@ -375,42 +416,47 @@ def create_lesson_booking_session():
             
         slot = selected_day['slots'][slot_idx]
         
-        # Calculate total price using current pricing
-        price_cents = prices.get(lesson_type, 0) * recurring_weeks
-        
-        # Create Stripe Checkout session
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': f'{lesson_type.title()} Lesson',
-                        'description': f'Badminton {lesson_type} lesson on {selected_day["date"]} at {slot["time"]}'
+        # Create a payment session with Stripe
+        try:
+            # Create a new Checkout Session for the order
+            checkout_session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {
+                            'name': f'{lesson_type.title()} Lesson' + (f' ({recurring_weeks} weeks)' if recurring_weeks > 1 else ''),
+                            'description': f'Booking for {selected_day["date"]} at {slot["time"]}'
+                        },
+                        'unit_amount': int(amount * 100),  # Convert to cents
                     },
-                    'unit_amount': prices.get(lesson_type, 0),
-                },
-                'quantity': recurring_weeks,
-            }],
-            mode='payment',
-            success_url=url_for('lesson_booking_success', session_id='{CHECKOUT_SESSION_ID}', _external=True),
-            cancel_url=url_for('lessons', _external=True),
-            metadata={
-                'day_idx': str(day_idx),
-                'slot_idx': str(slot_idx),
-                'lesson_type': lesson_type,
-                'recurring_weeks': str(recurring_weeks),
-                'user_id': str(session['user_id']),
-                'user_name': user.get('name', ''),
-                'user_email': user.get('email', '')
-            }
-        )
-        
-        return jsonify({'sessionId': checkout_session.id})
-        
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=url_for('lesson_booking_success', success=True, session_id='{CHECKOUT_SESSION_ID}', 
+                                  day_idx=day_idx, slot_idx=slot_idx, lesson_type=lesson_type, 
+                                  recurring_weeks=recurring_weeks, _external=True),
+                cancel_url=url_for('lessons', _external=True),
+                metadata={
+                    'user_id': str(session['user_id']),
+                    'day_idx': str(day_idx),
+                    'slot_idx': str(slot_idx),
+                    'lesson_type': lesson_type,
+                    'recurring_weeks': str(recurring_weeks),
+                    'date': selected_day['date'],
+                    'time': slot['time']
+                }
+            )
+            
+            return jsonify({'sessionId': checkout_session['id']})
+            
+        except Exception as e:
+            print(f"Error creating Stripe session: {str(e)}")
+            return jsonify({'error': 'Error creating payment session'}), 500
+    
     except Exception as e:
-        print(f"Error creating lesson booking session: {str(e)}")
-        return jsonify({'error': 'An error occurred while processing your request'}), 500
+        print(f"Error creating lesson booking: {str(e)}")
+        return jsonify({'error': 'An error occurred while processing your booking'}), 500
 
 @app.route('/lesson-booking-success')
 def lesson_booking_success():
@@ -423,25 +469,30 @@ def lesson_booking_success():
         # Verify the session with Stripe
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         
+        # Check if payment was successful
         if checkout_session.payment_status != 'paid':
-            flash('Payment not completed', 'error')
+            flash('Payment was not successful. Please try again.', 'error')
             return redirect(url_for('lessons'))
         
-        # Process the booking
+        # Get metadata from the checkout session
         metadata = checkout_session.metadata
-        day_idx = int(metadata.get('day_idx'))
-        slot_idx = int(metadata.get('slot_idx'))
+        user_id = metadata.get('user_id')
+        day_idx = int(metadata.get('day_idx', 0))
+        slot_idx = int(metadata.get('slot_idx', 0))
         lesson_type = metadata.get('lesson_type')
         recurring_weeks = int(metadata.get('recurring_weeks', 1))
+        date_str = metadata.get('date')
+        time_str = metadata.get('time')
         
-        # Get user info from session
-        user_id = metadata.get('user_id')
-        user_name = metadata.get('user_name')
-        user_email = metadata.get('user_email')
+        # Get user info
+        user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('lessons'))
         
         # Generate month slots to get the selected day
-        today = datetime.now()
-        lesson_days = generate_month_slots(today.year, today.month)
+        selected_date = datetime.strptime(date_str, '%Y-%m-%d')
+        lesson_days = generate_month_slots(selected_date.year, selected_date.month)
         
         if day_idx < 0 or day_idx >= len(lesson_days):
             flash('Invalid day selected', 'error')
@@ -454,7 +505,95 @@ def lesson_booking_success():
             
         slot = selected_day['slots'][slot_idx]
         
-        # Process the booking (similar to the original POST handler in lessons route)
+        # Process the booking for each week
+        success_count = 0
+        for week in range(recurring_weeks):
+            lesson_date = selected_date + timedelta(weeks=week)
+            week_date_str = lesson_date.strftime('%Y-%m-%d')
+            
+            # Check if this date has no classes
+            schedule_settings = mongo.db.schedule_settings.find_one({'date': week_date_str}) or {}
+            if schedule_settings.get('no_classes', False):
+                continue
+                
+            # Check if slot is available for this date
+            if schedule_settings.get('custom_time_slots'):
+                if time_str not in schedule_settings['custom_time_slots']:
+                    continue
+            
+            # Check if slot is already booked
+            existing_booking = mongo.db.bookings.find_one({
+                'date': week_date_str,
+                'time': time_str,
+                'lesson_type': 'private'
+            })
+            
+            if existing_booking:
+                if lesson_type == 'private':
+                    continue
+                elif lesson_type == 'group':
+                    group_count = mongo.db.bookings.count_documents({
+                        'date': week_date_str,
+                        'time': time_str,
+                        'lesson_type': 'group'
+                    })
+                    if group_count >= 5:
+                        continue
+            
+            # Create booking in database
+            booking_data = {
+                'user_id': user_id,
+                'name': user.get('name', ''),
+                'email': user.get('email', ''),
+                'date': week_date_str,
+                'time': time_str,
+                'lesson_type': lesson_type,
+                'created_at': datetime.utcnow(),
+                'payment_status': 'paid',
+                'stripe_session_id': session_id,
+                'recurring_week': f"{week + 1}/{recurring_weeks}" if recurring_weeks > 1 else None
+            }
+            
+            # Check if this is a group or private lesson
+            if lesson_type == 'group':
+                group_count = mongo.db.bookings.count_documents({
+                    'date': week_date_str,
+                    'time': time_str,
+                    'lesson_type': 'group'
+                })
+                if group_count >= 5:  # Max 5 people in a group
+                    continue
+                booking_data['group_size'] = group_count + 1
+            
+            # Insert booking
+            mongo.db.bookings.insert_one(booking_data)
+            success_count += 1
+            
+            # Send confirmation email
+            details = f"<p><strong>Type:</strong> {lesson_type.title()} Lesson</p>"
+            if recurring_weeks > 1:
+                details += f"<p><strong>Series:</strong> Week {week + 1} of {recurring_weeks}</p>"
+            
+            send_booking_confirmation_email(
+                "Lesson", 
+                user.get('name', ''), 
+                user.get('email', ''), 
+                week_date_str, 
+                time_str, 
+                details
+            )
+        
+        if success_count > 0:
+            if recurring_weeks == 1:
+                flash(f'Successfully booked {lesson_type} lesson!', 'success')
+            else:
+                flash(f'Successfully booked {success_count} {lesson_type} lessons!', 'success')
+        else:
+            flash('No available slots were booked. Please try again.', 'error')
+        
+        return redirect(url_for('lessons', day=day_idx, month=selected_date.month, year=selected_date.year))
+        
+        # Process the booking
         success_count = 0
         for week in range(recurring_weeks):
             lesson_date = datetime.strptime(selected_day['date'], '%Y-%m-%d') + timedelta(weeks=week)
@@ -489,34 +628,24 @@ def lesson_booking_success():
                     if group_count >= 5:
                         continue
             
-            # Create the booking
+            # Create booking in database
             booking_data = {
+                'user_id': str(session['user_id']),
+                'name': user.get('name', ''),
+                'email': user.get('email', ''),
                 'date': date_str,
                 'time': slot['time'],
                 'lesson_type': lesson_type,
-                'name': user_name,
-                'email': user_email,
-                'user_id': user_id,
-                'recurring_id': f"{user_id}_{slot['time']}_{lesson_type}",
-                'week_number': week + 1,
-                'total_weeks': recurring_weeks,
-                'payment_status': 'paid',
-                'payment_id': checkout_session.payment_intent,
-                'amount_paid': prices[lesson_type] if lesson_type in prices else 0,
-                'created_at': datetime.now()
+                'created_at': datetime.utcnow(),
+                'payment_status': 'paid',  # No payment required now
+                'recurring_week': f"{week + 1}/{recurring_weeks}" if recurring_weeks > 1 else None
             }
             
-            mongo.db.bookings.insert_one(booking_data)
-            success_count += 1
-            
-            # Send confirmation email
-            details = f"<p><strong>Type:</strong> {lesson_type.title()} Lesson</p>"
+            # Check if this is a group or private lesson
             if lesson_type == 'group':
-                group_count = mongo.db.bookings.count_documents({
-                    'date': date_str,
-                    'time': slot['time'],
-                    'lesson_type': 'group'
-                })
+                if len(slot['group']) >= 5:  # Max 5 people in a group
+                    continue
+                booking_data['group_size'] = len(slot['group']) + 1
                 details += f"<p><strong>Group Size:</strong> {group_count}/5</p>"
             
             if recurring_weeks > 1:
@@ -539,23 +668,21 @@ def lesson_booking_success():
         else:
             flash('No lessons could be booked. All slots may be unavailable or booked.', 'warning')
         
-        return redirect(url_for('lessons'))
+        # Redirect with flag to allow flashes to render once on lessons page
+        return redirect(url_for('lessons', show_flash=1))
         
     except Exception as e:
         print(f"Error processing lesson booking success: {str(e)}")
         flash('Your payment was successful, but there was an error completing your booking. Please contact support.', 'warning')
-        return redirect(url_for('lessons'))
+        return redirect(url_for('lessons', show_flash=1))
 
 @app.route('/lessons', methods=['GET', 'POST'])
 @login_required
 def lessons():
     message = None
-    # Consume any pending flash messages so none render on this page
-    try:
-        from flask import get_flashed_messages
-        get_flashed_messages(with_categories=True)
-    except Exception:
-        pass
+    # Use configured timezone for all time comparisons
+    app_tz = os.getenv('APP_TIMEZONE', 'America/New_York')
+    TZ = ZoneInfo(app_tz)
     # Get month/year from query params, default to current
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
@@ -571,7 +698,13 @@ def lessons():
     selected_day = None
     if selected_day_idx is not None:
         selected_day_idx = int(selected_day_idx)
-        selected_day = lesson_days[selected_day_idx]
+        if 0 <= selected_day_idx < len(lesson_days):
+            selected_day = lesson_days[selected_day_idx]
+
+    # Get current user from session
+    user = None
+    if 'user_id' in session:
+        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
 
     # Load schedule settings and bookings
     schedule_settings = {s['date']: s for s in mongo.db.schedule_settings.find()}
@@ -590,34 +723,35 @@ def lessons():
         
         # Get custom time slots for this day (if any)
         custom_slots = schedule_settings.get(day['date'], {}).get('custom_time_slots', [])
+        # Pre-parse to minutes for robust comparison across formats
+        custom_ranges = set()
+        for s in custom_slots:
+            rng = _parse_range_minutes(s)
+            if rng:
+                custom_ranges.add(rng)
         
         for slot_idx, slot in enumerate(day['slots']):
             slot['group'] = []  # Reset group list
             slot['private'] = None  # Reset private slot
             
             # Check if this time slot is available based on custom settings
-            if custom_slots:
-                slot['is_available'] = slot['time'] in custom_slots
+            if custom_ranges:
+                slot_rng = _parse_range_minutes(slot['time'])
+                slot['is_available'] = slot_rng in custom_ranges if slot_rng else False
             else:
                 slot['is_available'] = True
             
-            # Check if this time slot has passed for today
-            if day['date'] == datetime.now().strftime('%Y-%m-%d'):
-                # Extract end hour from time slot (e.g., "5:00 PM - 6:00 PM" -> 6)
+            # Check if this time slot has passed for today (use minutes-accurate comparison in local TZ)
+            now_local = datetime.now(TZ)
+            if day['date'] == now_local.strftime('%Y-%m-%d'):
                 try:
-                    end_hour_str = slot['time'].split(' - ')[1].split(':')[0]
-                    end_hour = int(end_hour_str)
-                    current_hour = datetime.now().hour
-                    
-                    # Convert 12-hour format to 24-hour for comparison
-                    if 'PM' in slot['time'] and end_hour != 12:
-                        end_hour += 12
-                    elif 'AM' in slot['time'] and end_hour == 12:
-                        end_hour = 0
-                    
-                    # Slot is past if it has already ended
-                    slot['is_past'] = end_hour <= current_hour
-                except:
+                    # Parse end time (e.g., "5:00 PM - 6:30 PM") and build a datetime on the slot's date
+                    end_time_str = slot['time'].split(' - ')[1].strip()
+                    end_dt = datetime.strptime(f"{day['date']} {end_time_str}", "%Y-%m-%d %I:%M %p").replace(tzinfo=TZ)
+                    now_dt = now_local
+                    # Mark as past if the slot has ended
+                    slot['is_past'] = now_dt >= end_dt
+                except Exception:
                     slot['is_past'] = False
             else:
                 slot['is_past'] = False
@@ -630,129 +764,147 @@ def lessons():
                         slot['private'] = {'name': booking['name'], 'email': booking['email']}
 
     if request.method == 'POST':
-        day_idx = int(request.form['day_idx'])
-        slot_idx = int(request.form['slot_idx'])
-        lesson_type = request.form['lesson_type']
-        name = request.form['name']
-        email = request.form['email']
-        recurring_weeks = int(request.form.get('recurring_weeks', 1))
-        
-        # Validate recurring weeks (1-12 weeks max)
-        if recurring_weeks < 1 or recurring_weeks > 12:
-            recurring_weeks = 1
-        
-        slot = lesson_days[day_idx]['slots'][slot_idx]
-        selected_date = datetime.strptime(lesson_days[day_idx]['date'], '%Y-%m-%d')
-        
-        # Book recurring lessons
-        success_count = 0
-        for week in range(recurring_weeks):
-            # Calculate date for this week
-            lesson_date = selected_date + timedelta(weeks=week)
-            date_str = lesson_date.strftime('%Y-%m-%d')
+        try:
+            day_idx = int(request.form['day_idx'])
+            slot_idx = int(request.form['slot_idx'])
+            lesson_type = request.form['lesson_type']
+            name = request.form.get('student_name', session.get('user_name', ''))
+            email = request.form.get('student_email', session.get('user_email', ''))
+            recurring_weeks = int(request.form.get('recurring_weeks', 1))
             
-            # Check if this date has no classes
-            if schedule_settings.get(date_str, {}).get('no_classes', False):
-                continue  # Skip this date
+            # Validate recurring weeks (1-12 weeks max)
+            if recurring_weeks < 1 or recurring_weeks > 12:
+                recurring_weeks = 1
             
-            # Check if slot is available for this date
-            slot_available = True
-            if schedule_settings.get(date_str, {}).get('custom_time_slots'):
-                custom_slots = schedule_settings[date_str]['custom_time_slots']
-                slot_available = slot['time'] in custom_slots
+            slot = lesson_days[day_idx]['slots'][slot_idx]
+            selected_date = datetime.strptime(lesson_days[day_idx]['date'], '%Y-%m-%d')
             
-            if not slot_available:
-                continue  # Skip this date
-            
-            # Check if slot is past for this date
-            if date_str == datetime.now().strftime('%Y-%m-%d'):
-                try:
-                    end_hour_str = slot['time'].split(' - ')[1].split(':')[0]
-                    end_hour = int(end_hour_str)
-                    current_hour = datetime.now().hour
-                    
-                    if 'PM' in slot['time'] and end_hour != 12:
-                        end_hour += 12
-                    elif 'AM' in slot['time'] and end_hour == 12:
-                        end_hour = 0
-                    
-                    if end_hour <= current_hour:
-                        continue  # Skip past slots
-                except:
-                    pass
-            
-            # Check if slot is already booked for this date
-            existing_booking = mongo.db.bookings.find_one({
-                'date': date_str,
-                'time': slot['time']
-            })
-            
-            if existing_booking:
+            # Book recurring lessons
+            success_count = 0
+            for week in range(recurring_weeks):
+                # Calculate date for this week
+                lesson_date = selected_date + timedelta(weeks=week)
+                date_str = lesson_date.strftime('%Y-%m-%d')
+                
+                # Check if this date has no classes
+                if schedule_settings.get(date_str, {}).get('no_classes', False):
+                    continue  # Skip this date
+                
+                # Check if slot is available for this date
+                slot_available = True
+                if schedule_settings.get(date_str, {}).get('custom_time_slots'):
+                    custom_slots = schedule_settings[date_str]['custom_time_slots']
+                    custom_ranges = set()
+                    for s in custom_slots:
+                        rng = _parse_range_minutes(s)
+                        if rng:
+                            custom_ranges.add(rng)
+                    if custom_ranges:
+                        slot_rng = _parse_range_minutes(slot['time'])
+                        slot_available = slot_rng in custom_ranges if slot_rng else False
+                    else:
+                        slot_available = True  # No valid ranges parsed; treat as unrestricted
+                
+                if not slot_available:
+                    continue  # Skip this date
+                
+                # Check if slot is past for this date (use minutes-accurate comparison in local TZ)
+                now_local = datetime.now(TZ)
+                if date_str == now_local.strftime('%Y-%m-%d'):
+                    try:
+                        end_time_str = slot['time'].split(' - ')[1].strip()
+                        end_dt = datetime.strptime(f"{date_str} {end_time_str}", "%Y-%m-%d %I:%M %p").replace(tzinfo=TZ)
+                        now_dt = now_local
+                        if now_dt >= end_dt:
+                            continue  # Skip past slots
+                    except Exception:
+                        pass
+                
+                # Check if slot is already booked for this date
+                existing_booking = mongo.db.bookings.find_one({
+                    'date': date_str,
+                    'time': slot['time']
+                })
+                
+                if existing_booking:
+                    if lesson_type == 'private':
+                        continue  # Skip if private slot is booked
+                    elif lesson_type == 'group' and len(existing_booking.get('group', [])) >= 5:
+                        continue  # Skip if group is full
+                
+                # Book the lesson
                 if lesson_type == 'private':
-                    continue  # Skip if private slot is booked
-                elif lesson_type == 'group' and len(existing_booking.get('group', [])) >= 5:
-                    continue  # Skip if group is full
-            
-            # Book the lesson
-        if lesson_type == 'private':
-                booking_data = {
-                    'date': date_str,
-                    'time': slot['time'],
-                    'lesson_type': 'private',
-                    'name': name,
-                    'email': email,
-                    'recurring_id': f"{name}_{email}_{slot['time']}_{lesson_type}",
-                    'week_number': week + 1,
-                    'total_weeks': recurring_weeks
-                }
-                mongo.db.bookings.insert_one(booking_data)
-                success_count += 1
-                
-                # Send confirmation email
-                details = f"<p><strong>Type:</strong> Private Lesson</p>"
-                if recurring_weeks > 1:
-                    details += f"<p><strong>Series:</strong> Week {week + 1} of {recurring_weeks}</p>"
-                send_booking_confirmation_email("Lesson", name, email, date_str, slot['time'], details)
-                
-        elif lesson_type == 'group':
-                # Check current group size for this date
-                current_bookings = list(mongo.db.bookings.find({
-                    'date': date_str,
-                    'time': slot['time'],
-                    'lesson_type': 'group'
-                }))
-                
-                if len(current_bookings) < 5:
                     booking_data = {
                         'date': date_str,
-                    'time': slot['time'],
-                    'lesson_type': 'group',
-                    'name': name,
+                        'time': slot['time'],
+                        'lesson_type': 'private',
+                        'name': name,
                         'email': email,
                         'recurring_id': f"{name}_{email}_{slot['time']}_{lesson_type}",
                         'week_number': week + 1,
                         'total_weeks': recurring_weeks
                     }
-                    mongo.db.bookings.insert_one(booking_data)
-                    success_count += 1
-                    
+                    # Check if this is the first week of a recurring booking
+                    if week == 0:
+                        # Create the booking
+                        mongo.db.bookings.insert_one(booking_data)
+                        success_count += 1
+                
                     # Send confirmation email
-                    details = f"<p><strong>Type:</strong> Group Lesson</p>"
-                    details += f"<p><strong>Group Size:</strong> {len(current_bookings) + 1}/5</p>"
+                    details = f"<p><strong>Type:</strong> Private Lesson</p>"
                     if recurring_weeks > 1:
                         details += f"<p><strong>Series:</strong> Week {week + 1} of {recurring_weeks}</p>"
                     send_booking_confirmation_email("Lesson", name, email, date_str, slot['time'], details)
-        
-        if success_count > 0:
-            if recurring_weeks == 1:
-                message = f'{lesson_type.title()} lesson booked!'
+                
+                elif lesson_type == 'group':
+                    # Check current group size for this date
+                    current_bookings = list(mongo.db.bookings.find({
+                        'date': date_str,
+                        'time': slot['time'],
+                        'lesson_type': 'group'
+                    }))
+                    
+                    if len(current_bookings) < 5:
+                        booking_data = {
+                            'date': date_str,
+                            'time': slot['time'],
+                            'lesson_type': 'group',
+                            'name': name,
+                            'email': email,
+                            'recurring_id': f"{name}_{email}_{slot['time']}_{lesson_type}",
+                            'week_number': week + 1,
+                            'total_weeks': recurring_weeks
+                        }
+                        mongo.db.bookings.insert_one(booking_data)
+                        success_count += 1
+                        
+                        # Send confirmation email
+                        details = f"<p><strong>Type:</strong> Group Lesson</p>"
+                        details += f"<p><strong>Group Size:</strong> {len(current_bookings) + 1}/5</p>"
+                        if recurring_weeks > 1:
+                            details += f"<p><strong>Series:</strong> Week {week + 1} of {recurring_weeks}</p>"
+                        send_booking_confirmation_email("Lesson", name, email, date_str, slot['time'], details)
+            
+            if success_count > 0:
+                if recurring_weeks == 1:
+                    message = f'{lesson_type.title()} lesson booked!'
+                else:
+                    message = f'Booked {success_count} out of {recurring_weeks} recurring {lesson_type} lessons!'
             else:
-                message = f'Booked {success_count} out of {recurring_weeks} recurring {lesson_type} lessons!'
-        else:
-            message = 'No lessons could be booked. All slots may be unavailable or booked.'
-        
-        selected_day = lesson_days[day_idx]
-        selected_day_idx = day_idx
+                message = 'No lessons could be booked. All slots may be unavailable or booked.'
+            
+            selected_day = lesson_days[day_idx]
+            selected_day_idx = day_idx
+            
+        except Exception as e:
+            print(f"Error processing lesson booking: {str(e)}")
+            message = 'An error occurred while processing your booking.'
+            
+            # Set default values for rendering the page
+            if 'day_idx' in request.form:
+                day_idx = int(request.form['day_idx'])
+                selected_day = lesson_days[day_idx]
+                selected_day_idx = day_idx
 
     # Calculate weekday index for the first day
     first_day_dt = datetime(year, month, 1)
@@ -762,18 +914,27 @@ def lessons():
 
     month_name = first_day_dt.strftime('%B')
 
+    # Optional debug: log why slots are marked unavailable
+    if request.args.get('debug') == '1' and selected_day:
+        day_cfg = schedule_settings.get(selected_day['date'], {})
+        print(f"[LESSONS DEBUG] Date: {selected_day['date']} no_classes={day_cfg.get('no_classes')} custom_time_slots={day_cfg.get('custom_time_slots')}")
+        for s in selected_day['slots']:
+            print(f"[LESSONS DEBUG] time={s['time']} is_available={s.get('is_available')} is_past={s.get('is_past')} has_private={bool(s.get('private'))} group_size={len(s.get('group', []))}")
+
     return render_template(
         'lessons.html',
         lesson_days=lesson_days,
+        month=month,
+        year=year,
+        month_name=month_name,
+        weekday=weekday,
         selected_day=selected_day,
         selected_day_idx=selected_day_idx,
+        lesson_types=LESSON_TYPES,
+        stripe_public_key=stripe_public_key,
         message=message,
-        weekday=weekday,
-        month_name=month_name,
-        year=year,
-        month=month,
-        now=datetime.now(),
-        stripe_public_key=STRIPE_PUBLIC_KEY
+        now=datetime.now(TZ), # Pass timezone-aware now
+        current_user=user
     )
 
 
@@ -861,6 +1022,91 @@ def membership():
     from app import MEMBERSHIP_PLANS
     return render_template('membership.html', membership_plans=MEMBERSHIP_PLANS)
 
+
+@app.route('/create-checkout-session', methods=['POST'])
+@login_required
+def create_checkout_session():
+    from app import MEMBERSHIP_PLANS
+    plan_id = request.form.get('plan_id')
+    plan = MEMBERSHIP_PLANS.get(plan_id)
+
+    if not plan:
+        flash('Invalid membership plan selected.', 'error')
+        return redirect(url_for('membership'))
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': plan['name'],
+                    },
+                    'unit_amount': plan['price'],
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=request.url_root + 'membership-success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('membership_cancel', _external=True),
+            metadata={
+                'user_id': session['user_id'],
+                'plan_id': plan_id
+            }
+        )
+        return redirect(checkout_session.url, code=303)
+    except Exception as e:
+        flash(f'Error creating checkout session: {e}', 'error')
+        return redirect(url_for('membership'))
+
+
+@app.route('/membership-success')
+@login_required
+def membership_success():
+    from bson.objectid import ObjectId
+    session_id = request.args.get('session_id')
+    if not session_id:
+        flash('No session ID provided.', 'error')
+        return redirect(url_for('membership'))
+
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        if checkout_session.payment_status == 'paid':
+            metadata = checkout_session.metadata
+            user_id = metadata['user_id']
+            plan_id = metadata['plan_id']
+            
+            # Update user's membership status in the database
+            expires_at = datetime.now() + timedelta(days=30) # Assuming monthly membership
+            mongo.db.users.update_one(
+                {'_id': ObjectId(user_id)},
+                {'$set': {
+                    'membership': {
+                        'plan_id': plan_id,
+                        'status': 'active',
+                        'purchased_at': datetime.now(),
+                        'expires_at': expires_at
+                    }
+                }}
+            )
+            
+            flash('Membership purchased successfully!', 'success')
+            return redirect(url_for('profile'))
+        else:
+            flash('Payment was not successful.', 'error')
+            return redirect(url_for('membership'))
+    except stripe.error.StripeError as e:
+        flash(f'An error occurred: {e}', 'error')
+        return redirect(url_for('membership'))
+
+
+@app.route('/membership-cancel')
+@login_required
+def membership_cancel():
+    flash('Membership purchase was cancelled.', 'info')
+    return redirect(url_for('membership'))
+
 @app.route('/profile')
 @login_required
 def profile():
@@ -873,9 +1119,12 @@ def profile():
         flash('User not found', 'error')
         return redirect(url_for('index'))
     
+    from app import MEMBERSHIP_PLANS
+
     # Get membership details
     membership = user.get('membership', {})
-    
+    plan_name = "N/A"
+
     # Check if membership is active and not expired
     is_active = False
     days_remaining = 0
@@ -888,6 +1137,23 @@ def profile():
         now = datetime.now()
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=now.tzinfo)
+
+        if expires_at > now:
+            is_active = True
+            days_remaining = (expires_at - now).days
+            # Get the plan display name
+            plan_id = membership.get('plan_id')
+            if plan_id and plan_id in MEMBERSHIP_PLANS:
+                plan_name = MEMBERSHIP_PLANS[plan_id].get('name', 'Unknown Plan')
+
+    return render_template(
+        'profile.html',
+        user=user,
+        membership=membership,
+        is_active=is_active,
+        days_remaining=days_remaining,
+        plan_name=plan_name
+    )
 
 @app.route('/admin/pricing', methods=['GET', 'POST'])
 @admin_required

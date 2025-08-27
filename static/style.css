@@ -1,3 +1,64 @@
+/* Flash Messages */
+.alert {
+    padding: 15px 20px;
+    margin: 10px 20px;
+    border-radius: 4px;
+    color: white;
+    position: relative;
+    animation: fadeIn 0.3s ease-in;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.alert-success {
+    background-color: #4CAF50;
+    border-left: 4px solid #388E3C;
+}
+
+.alert-error {
+    background-color: #F44336;
+    border-left: 4px solid #D32F2F;
+}
+
+.alert-warning {
+    background-color: #FFC107;
+    border-left: 4px solid #FFA000;
+    color: #333;
+}
+
+.alert-info {
+    background-color: #2196F3;
+    border-left: 4px solid #1976D2;
+}
+
+.alert-close {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 0 5px;
+    opacity: 0.8;
+}
+
+.alert-close:hover {
+    opacity: 1;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-10px); }
+}
+
 /* Base Styles */
 :root {
     --primary-color: #1a5f9e;
