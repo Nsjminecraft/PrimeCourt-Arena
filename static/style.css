@@ -576,69 +576,92 @@ table th {
 
 .calendar-table {
     width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 2rem;
+    border-radius: 16px;
+    overflow: hidden;
     background: #222;
     color: #fff;
-    border-radius: 12px;
-    overflow: hidden;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
 }
-.calendar-table th, .calendar-table td {
-    width: 14.28%;
-    height: 80px;
-    text-align: center;
-    border: 1px solid #333;
-    font-size: 1.2rem;
-    background: #222;
-}
+
 .calendar-table th {
-    background: #181818;
+    background: #222;
+    color: #fff;
+    padding: 12px 0;
     font-weight: 600;
-    color: #bbb;
 }
+
+.calendar-table td {
+    text-align: center;
+    padding: 10px 0;
+}
+
 .calendar-day-btn {
-    background: #333;
+    display: inline-block;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #444;
     color: #fff;
     border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 1.1rem;
+    font-size: 1rem;
+    line-height: 38px;
+    text-align: center;
     cursor: pointer;
-    transition: background 0.2s;
+    margin: 2px;
+    transition: background 0.2s, color 0.2s;
 }
 
-.calendar-day-btn:hover,
 .calendar-day-btn.active {
-    background: #1a5f9e;
+    background: #1976d2;
     color: #fff;
 }
 
-.calendar-day-past {
+.calendar-day-past,
+.calendar-day-btn[aria-disabled="true"] {
     background: #888 !important;
     color: #ccc !important;
-    cursor: not-allowed !important;
-    opacity: 0.6;
+    cursor: not-allowed;
 }
 
-.calendar-arrow-btn {
-    background: #222;
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    font-size: 1.5rem;
-    display: inline-flex;
+.calendar-day-btn:hover:not(.calendar-day-past):not(.active) {
+    background: #333;
+}
+
+/* Calendar navigation */
+.calendar-nav {
+    display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 8px;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+.calendar-month {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #222;
+    min-width: 140px;
+    text-align: center;
+}
+
+/* Circular arrow buttons */
+.calendar-arrow-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #111;
+    color: #fff;
+    border: none;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
     transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 .calendar-arrow-btn:hover {
-    background: #1a5f9e;
-    color: #fff;
+    background: #333;
 }
 
 /* Footer */
@@ -656,6 +679,64 @@ footer {
 footer p {
     margin: 0;
     color: rgba(255, 255, 255, 0.7);
+}
+
+/* Lessons page container */
+.lesson-container {
+    max-width: 700px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 32px 24px;
+    border-radius: 10px;
+    box-shadow: 0 2px 16px rgba(30,58,92,0.08);
+}
+
+/* Section spacing */
+.form-section {
+    margin-bottom: 20px;
+}
+
+/* Form labels */
+.lesson-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* Inputs and select */
+.lesson-container input[type="text"],
+.lesson-container select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    margin-top: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+/* Radio buttons */
+.lesson-container input[type="radio"] {
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+/* Book button */
+.book-btn {
+    width: 100%;
+    padding: 12px;
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.book-btn:hover {
+    background: #125ea6;
 }
 
 /* Responsive Design */
@@ -746,4 +827,182 @@ footer p {
 /* Hide hamburger on desktop */
 .navbar-toggle {
     display: none;
+}
+
+/* Hide base-level flash alerts on this page when not showing booking result */
+body.hide-flash > .container > .alert { display: none !important; }
+
+/* Center the main container */
+.container.section {
+    max-width: 700px;
+    margin: 40px auto;
+    background: #f7f9fb;
+    border-radius: 12px;
+    padding: 32px 0 32px 0;
+}
+
+/* Calendar styles */
+.calendar-table {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #222;
+    color: #fff;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+}
+
+.calendar-table th {
+    background: #222;
+    color: #fff;
+    padding: 12px 0;
+    font-weight: 600;
+}
+
+.calendar-table td {
+    text-align: center;
+    padding: 10px 0;
+}
+
+.calendar-day-btn {
+    display: inline-block;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #444;
+    color: #fff;
+    border: none;
+    font-size: 1rem;
+    line-height: 38px;
+    text-align: center;
+    cursor: pointer;
+    margin: 2px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.calendar-day-btn.active {
+    background: #1976d2;
+    color: #fff;
+}
+
+.calendar-day-past,
+.calendar-day-btn[aria-disabled="true"] {
+    background: #888 !important;
+    color: #ccc !important;
+    cursor: not-allowed;
+}
+
+.calendar-day-btn:hover:not(.calendar-day-past):not(.active) {
+    background: #333;
+}
+
+/* Calendar navigation */
+.calendar-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+.calendar-month {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #222;
+    min-width: 140px;
+    text-align: center;
+}
+
+/* Circular arrow buttons */
+.calendar-arrow-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #111;
+    color: #fff;
+    border: none;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.calendar-arrow-btn:hover {
+    background: #333;
+}
+
+/* Footer */
+footer {
+    background: #2c3235;
+    color: #fff;
+    padding: 20px 0;
+    text-align: center;
+    margin-top: 40px;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    border-radius: 0 0 12px 12px;
+}
+
+footer p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Lessons page container */
+.lesson-container {
+    max-width: 400px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 32px 24px;
+    border-radius: 10px;
+    box-shadow: 0 2px 16px rgba(30,58,92,0.08);
+}
+
+/* Section spacing */
+.form-section {
+    margin-bottom: 20px;
+}
+
+/* Form labels */
+.lesson-container label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* Inputs and select */
+.lesson-container input[type="text"],
+.lesson-container select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 5px;
+    margin-top: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+/* Radio buttons */
+.lesson-container input[type="radio"] {
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+/* Book button */
+.book-btn {
+    width: 100%;
+    padding: 12px;
+    background: #1976d2;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.book-btn:hover {
+    background: #125ea6;
 }

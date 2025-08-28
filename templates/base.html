@@ -6,8 +6,42 @@
     <title>PrimeCourt Arena</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .calendar-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .calendar-month {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #222;
+            min-width: 120px;
+            text-align: center;
+        }
+        .calendar-arrow-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #111;
+            color: #fff;
+            border: none;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .calendar-arrow-btn:hover {
+            background: #333;
+        }
+    </style>
 </head>
-<body>
+<body{% if not request.args.get('show_flash') %} class="hide-flash"{% endif %}>
     {% block flashes %}
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}

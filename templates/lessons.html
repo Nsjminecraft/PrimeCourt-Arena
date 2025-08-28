@@ -3,74 +3,6 @@
 {% block head %}
 {{ super() }}
 <script src="https://js.stripe.com/v3/"></script>
-<style>
-  /* Hide base-level flash alerts on this page when not showing booking result */
-  {% if not request.args.get('show_flash') %}
-  body > .container > .alert { display: none !important; }
-  {% endif %}
-
-  .calendar-arrow-btn {
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-  }
-  .calendar-table {
-      width: 100%;
-      text-align: center;
-  }
-  .calendar-day-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      background-color: #f0f0f0;
-      cursor: pointer;
-  }
-  .calendar-day-btn.active {
-      border-color: #007bff;
-      background-color: #e0efff;
-  }
-  .calendar-day-past {
-      background-color: #f8f9fa;
-      color: #6c757d;
-      cursor: not-allowed;
-  }
-  .lesson-type-option label {
-      display: flex;
-      align-items: center;
-      padding: 15px;
-      border: 2px solid #dee2e6;
-      border-radius: 8px;
-      cursor: pointer;
-  }
-  .lesson-type-option input[type="radio"]:checked + label {
-      border-color: #4CAF50;
-      background-color: #f0f9f0;
-  }
-  .time-slots {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 10px;
-  }
-  .time-slot-btn {
-      padding: 10px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      cursor: pointer;
-  }
-  .time-slot-btn.selected {
-      border-color: #4CAF50;
-      background-color: #e8f5e9;
-  }
-  .time-slot-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-  }
-  .loading .spinner-border { display: inline-block !important; }
-  .loading .btn-text { visibility: hidden; }
-  #payment-error:not(.d-none) { display: block; }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -87,19 +19,19 @@
         Your booking was cancelled. You can try booking again anytime.
     </div>
 
-    <h3>
-        <form method="get" action="{{ url_for('lessons') }}" style="display:inline;">
+    <div class="calendar-header" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+        <form method="get" action="{{ url_for('lessons') }}">
             <input type="hidden" name="month" value="{{ month - 1 if month > 1 else 12 }}">
             <input type="hidden" name="year" value="{{ year if month > 1 else year - 1 }}">
-            <button type="submit" class="calendar-arrow-btn">&#8592;</button>
+            <button type="submit" class="calendar-arrow-btn" aria-label="Previous Month">&#8592;</button>
         </form>
-        {{ month_name }} {{ year }}
-        <form method="get" action="{{ url_for('lessons') }}" style="display:inline;">
+        <span class="calendar-month" style="font-size: 1.5rem; font-weight: bold;">{{ month_name }} {{ year }}</span>
+        <form method="get" action="{{ url_for('lessons') }}">
             <input type="hidden" name="month" value="{{ month + 1 if month < 12 else 1 }}">
             <input type="hidden" name="year" value="{{ year if month < 12 else year + 1 }}">
-            <button type="submit" class="calendar-arrow-btn">&#8594;</button>
+            <button type="submit" class="calendar-arrow-btn" aria-label="Next Month">&#8594;</button>
         </form>
-    </h3>
+    </div>
 
     <table class="calendar-table my-4">
         <thead>
@@ -120,8 +52,8 @@
                         {% set is_past = day.date < today_str %}
                         <td>
                             <a href="{{ url_for('lessons', year=year, month=month, day=ns.day_ptr) }}" 
-                               class="btn calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past %} calendar-day-past{% endif %}" 
-                               {% if is_past %}aria-disabled="true" onclick="return false;"{% endif %}>
+                               class="btn calendar-day-btn{% if selected_day_idx|int == ns.day_ptr %} active{% endif %}{% if is_past or day.no_classes %} calendar-day-past{% endif %}" 
+                               {% if is_past or day.no_classes %}aria-disabled="true" onclick="return false;"{% endif %}>
                                 {{ day.date.split('-')[2] }}
                             </a>
                         </td>
@@ -139,55 +71,40 @@
         {% if selected_day.no_classes %}
             <div class="alert alert-info">No classes on this day: {{ selected_day.no_classes_reason }}</div>
         {% else %}
-            <form id="lesson-booking-form">
-                <input type="hidden" name="day_idx" value="{{ selected_day_idx }}">
-                <input type="hidden" name="slot_idx" id="slot_idx_select" value="">
-
-                <div class="form-group">
-                    <h5>1. Select Lesson Type</h5>
-                    <div class="lesson-type-selector">
-                        {% for type in lesson_types %}
-                        <div class="lesson-type-option">
-                            <input type="radio" id="lesson_type_{{ type.id }}" name="lesson_type" value="{{ type.id }}" data-price="{{ type.price }}">
-                            <label for="lesson_type_{{ type.id }}">
-                                <i class="fas fa-user"></i>
-                                <span>{{ type.name }}</span>
-                                <span class="price">${{ "%.2f"|format(type.price) }}</span>
-                                <span class="badge">{{ type.capacity }} per slot</span>
-                            </label>
-                        </div>
-                        {% endfor %}
+            <div class="lesson-container">
+                <h2>Badminton Lessons</h2>
+                <div class="lessons-card" style="max-width: 700px; width: 100%; min-width: 350px; margin: 0 auto; padding: 2.5rem 2rem; font-size: 1.15rem;">
+                    <h1 class="lessons-title">Badminton Lessons</h1>
+                    <!-- Booking form goes here -->
+                    <div class="form-section">
+                        <label><strong>Select Lesson Type:</strong></label><br>
+                        <input type="radio" name="lesson_type" value="group"> Group Lesson (2-10) (per slot)<br>
+                        <input type="radio" name="lesson_type" value="private"> Private Lesson (1-2) (per slot)<br>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <h5>2. Choose a Slot</h5>
-                    <div class="time-slots">
-                        {% for slot in selected_day.slots %}
-                            <button type="button" class="btn time-slot-btn" data-slot-idx="{{ loop.index0 }}" data-lesson-type="{{ 'private' if slot.private else 'group' }}" {% if slot.is_past or not slot.is_available %}disabled{% endif %}>
-                                <div class="time">{{ slot.time }}</div>
-                                {% if slot.private %}<span class="badge badge-private">Private</span>{% endif %}
-                                {% if slot.group %}<span class="badge badge-group">{{ slot.group|length }} / 5</span>{% endif %}
-                                {% if slot.is_past or not slot.is_available %}<span class="badge-unavailable">Unavailable</span>{% endif %}
-                            </button>
-                        {% endfor %}
+                    <div class="form-section">
+                        <label for="time_slot"><strong>Select Time Slot:</strong></label><br>
+                        <select name="time_slot" id="time_slot">
+                            <option value="">-- Select a time slot --</option>
+                            <option value="10:00-11:00">10:00-11:00</option>
+                            <option value="11:10-12:10">11:10-12:10</option>
+                            <option value="12:20-13:20">12:20-13:20</option>
+                            <option value="13:30-14:30">13:30-14:30</option>
+                            <option value="14:40-15:40">14:40-15:40</option>
+                            <option value="15:50-16:50">15:50-16:50</option>
+                            <option value="17:00-18:00">17:00-18:00</option>
+                        </select>
                     </div>
+                    <div class="form-section">
+                        <label for="name"><strong>Your Name:</strong></label>
+                        <input type="text" name="name" id="name">
+                    </div>
+                    <div class="form-section">
+                        <label for="contact"><strong>Contact:</strong></label>
+                        <input type="text" name="contact" id="contact">
+                    </div>
+                    <button type="submit" class="book-btn">Book Slot</button>
                 </div>
-
-                <div class="form-group">
-                    <h5>3. Your Details</h5>
-                    <input type="text" id="student_name" name="student_name" class="form-control mb-2" placeholder="Your Name" value="{{ current_user.name if current_user.is_authenticated else '' }}" required>
-                    <input type="email" id="student_email" name="student_email" class="form-control" placeholder="Your Email" value="{{ current_user.email if current_user.is_authenticated else '' }}" required>
-                </div>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary" id="book-now-btn" disabled>
-                        <span class="btn-text">Book Slot</span>
-                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                    </button>
-                    <div id="payment-error" class="alert alert-danger mt-2 d-none"></div>
-                </div>
-            </form>
+            </div>
         {% endif %}
     {% endif %}
 </div>
