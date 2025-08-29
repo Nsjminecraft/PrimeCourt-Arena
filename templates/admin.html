@@ -20,15 +20,15 @@
             <h3><i class="fas fa-chart-line"></i> Quick Stats</h3>
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-value">{{ users|length }}</div>
+                    <div class="stat-value">{{ total_users }}</div>
                     <div class="stat-label">Total Users</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{{ lesson_bookings|length }}</div>
+                    <div class="stat-value">{{ total_lessons }}</div>
                     <div class="stat-label">Upcoming Lessons</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{{ court_bookings|length }}</div>
+                    <div class="stat-value">{{ total_courts }}</div>
                     <div class="stat-label">Court Bookings</div>
                 </div>
             </div>
@@ -52,83 +52,19 @@
         <!-- Recent Lesson Bookings -->
         <div class="admin-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Recent Lessons</h3>
-                <a href="{{ url_for('admin_schedule') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                <h3 class="mb-0"><i class="fas fa-chalkboard-teacher"></i> Recent Lessons <span class="badge bg-info">{{ total_lessons }}</span></h3>
+                <a href="{{ url_for('admin_lessons_today') }}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
-            {% if lesson_bookings %}
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Type</th>
-                                <th>Name</th>
-                                <th>Recurring</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for b in lesson_bookings|sort(attribute='date')|slice(5) %}
-                                <tr>
-                                    <td>{{ b.date }}</td>
-                                    <td>{{ b.time }}</td>
-                                    <td>{{ b.lesson_type }}</td>
-                                    <td>{{ b.name }}</td>
-                                    <td>
-                                        {% if b.recurring_id %}
-                                            <span class="badge bg-info">
-                                                Week {{ b.week_number }}/{{ b.total_weeks }}
-                                            </span>
-                                        {% else %}
-                                            <span class="text-muted">Single</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="alert alert-info mb-0">
-                    No upcoming lessons found.
-                </div>
-            {% endif %}
+            <div style="padding: 12px 0;"></div>
         </div>
 
         <!-- Recent Court Bookings -->
         <div class="admin-card">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0"><i class="fas fa-basketball-ball"></i> Recent Court Bookings</h3>
-                <a href="{{ url_for('courts') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                <h3 class="mb-0"><i class="fas fa-basketball-ball"></i> Recent Court Bookings <span class="badge bg-info">{{ total_courts }}</span></h3>
+                <a href="{{ url_for('admin_courts') }}" class="btn btn-sm btn-outline-primary">View All</a>
             </div>
-            {% if court_bookings %}
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Time</th>
-                                <th>Court</th>
-                                <th>Name</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for b in court_bookings|sort(attribute='date')|slice(5) %}
-                                <tr>
-                                    <td>{{ b.date }}</td>
-                                    <td>{{ b.time }}</td>
-                                    <td>Court {{ b.court_id }}</td>
-                                    <td>{{ b.user_name }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="alert alert-info mb-0">
-                    No court bookings found.
-                </div>
-            {% endif %}
+            <div style="padding: 12px 0;"></div>
         </div>
 
         <!-- Email Management -->

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Lessons for {{ today }}</h1>
+        <div class="actions">
+            <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        {% if bookings %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Student</th>
+                        <th>Email</th>
+                        <th>Recurring</th>
+                        <th>Payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bookings|sort(attribute='time') %}
+                    <tr>
+                        <td>{{ b.time }}</td>
+                        <td>{{ b.lesson_type }}</td>
+                        <td>{{ b.get('user_name', b.get('name', '')) }}</td>
+                        <td>{{ b.get('user_email', b.get('email', '')) }}</td>
+                        <td>
+                            {% if b.get('recurring_id') %}
+                                Week {{ b.get('week_number', 1) }}/{{ b.get('total_weeks', 1) }}
+                            {% else %}
+                                Single
+                            {% endif %}
+                        </td>
+                        <td>{{ b.get('payment_status', 'n/a') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <div class="alert alert-info">No lessons booked for today.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -349,6 +349,40 @@ def logout():
     flash('Logged out.')
     return redirect(url_for('login'))
 
+
+# Temporary route to make the current logged-in user an admin.
+# Protection: requires environment variable TEMP_ADMIN_TOKEN to be set and
+# the same token provided as ?token=... when calling this route.
+# Remove this route after use.
+@app.route('/make-me-admin', methods=['GET', 'POST'])
+def make_me_admin():
+    import os
+    token = request.args.get('token') or request.form.get('token')
+    expected = os.getenv('TEMP_ADMIN_TOKEN')
+
+    if not expected:
+        return "TEMP_ADMIN_TOKEN is not configured on the server. Set the env var to enable this temporary route.", 403
+
+    if token != expected:
+        return "Invalid token.", 403
+
+    # Must be logged in
+    if 'user_id' not in session:
+        flash('Please log in first.', 'error')
+        return redirect(url_for('login'))
+
+    try:
+        # Update the user's role in the database
+        mongo.db.users.update_one({'_id': ObjectId(session['user_id'])}, {'$set': {'role': 'admin'}})
+        # Update session flag so the current session recognizes admin rights immediately
+        session['is_admin'] = True
+        flash('You have been promoted to admin (temporary). Remove the TEMP route after use.', 'success')
+        return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        print(f"Error making user admin: {e}")
+        flash('There was an error promoting your account. Check server logs.', 'error')
+        return redirect(url_for('profile'))
+
 # Protect lessons and membership routes
 def login_required(f):
     from functools import wraps
@@ -439,6 +473,67 @@ def create_lesson_booking():
 
     except Exception as e:
         print('Error creating Stripe session:', str(e))
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/create-court-booking-session', methods=['POST'])
+@login_required
+def create_court_booking_session():
+    # Accept JSON from the courts page
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+
+    court_id = data.get('court_id')
+    time_slot = data.get('time_slot')
+    date = data.get('date')
+    user_id = session.get('user_id')
+    user_email = session.get('user_email')
+
+    if not (court_id and time_slot and date):
+        return jsonify({'error': 'Missing booking information'}), 400
+
+    # Price for courts (CAD $15)
+    price_amount = 15.00
+
+    # Ensure Stripe API key is configured
+    if not getattr(stripe, 'api_key', None):
+        err = 'Stripe API key not configured on server. Set STRIPE_SECRET_KEY.'
+        print(err)
+        return jsonify({'error': err}), 500
+
+    try:
+        metadata = {
+            'court_id': court_id,
+            'time_slot': time_slot,
+            'date': date,
+            'user_id': str(user_id) if user_id else '',
+            'user_name': session.get('user_name', ''),
+            'user_email': session.get('user_email', '')
+        }
+
+        session_obj = stripe.checkout.Session.create(
+            submit_type='book',
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'cad',
+                    'product_data': {'name': f'PrimeCourt - Court Booking ({court_id})'},
+                    'unit_amount': int(price_amount * 100),
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('court_booking_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('courts', _external=True) + '?status=cancel',
+            customer_email=user_email,
+            metadata=metadata
+        )
+
+        return jsonify({'sessionId': session_obj.id, 'url': session_obj.url})
+    except Exception as e:
+        print('Error creating court Stripe session:', str(e))
         return jsonify({'error': str(e)}), 500
 
 @app.route('/lesson-booking-success')
@@ -996,7 +1091,8 @@ def courts():
         courts=courts_list,
         date_str=selected_date_str,
         time_slots=time_slots,
-        booked_map=booked_map
+    booked_map=booked_map,
+    stripe_public_key=stripe_public_key
     )
 
 @app.route('/membership', methods=['GET', 'POST'])
@@ -1132,6 +1228,10 @@ def profile():
     return render_template(
         'profile.html',
         user=user,
+        member_since=(lambda u: (
+            (u.strftime('%B %d, %Y') if isinstance(u, datetime) else
+             (datetime.fromisoformat(u.replace('Z', '+00:00')).strftime('%B %d, %Y') if isinstance(u, str) else 'N/A'))
+        ))(user.get('created_at')),
         membership=membership,
         is_active=is_active,
         days_remaining=days_remaining,
@@ -1177,11 +1277,26 @@ def admin_dashboard():
     
     # Get today's date for filtering
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Get recent lesson bookings (upcoming and recent past)
-    lesson_bookings = list(mongo.db.bookings.find({
-        'date': {'$gte': today - timedelta(days=7)}
-    }).sort('date', 1))
+    today_str = today.strftime('%Y-%m-%d')
+    start_dt = today - timedelta(days=7)
+    start_str = start_dt.strftime('%Y-%m-%d')
+
+    # Fetch all lesson bookings and filter in Python to handle mixed date types (str or datetime)
+    all_lesson_bookings = list(mongo.db.bookings.find())
+    lesson_bookings = []
+    for b in all_lesson_bookings:
+        bdate = b.get('date')
+        if isinstance(bdate, datetime):
+            ds = bdate.strftime('%Y-%m-%d')
+        elif isinstance(bdate, str):
+            ds = bdate.split('T')[0][:10]
+        else:
+            continue
+
+        if ds >= start_str:
+            # normalize date to string for templates
+            b['date'] = ds
+            lesson_bookings.append(b)
     
     # Process lesson bookings to include user names and format dates
     for booking in lesson_bookings:
@@ -1195,22 +1310,32 @@ def admin_dashboard():
         if 'date' in booking and isinstance(booking['date'], datetime):
             booking['date'] = booking['date'].strftime('%Y-%m-%d')
     
-    # Get recent court bookings
-    court_bookings = list(mongo.db.court_bookings.find({
-        'date': {'$gte': today - timedelta(days=7)}
-    }).sort('date', 1))
-    
-    # Process court bookings to include user names and format dates
-    for booking in court_bookings:
-        # Add user name if not already present
-        if 'user_name' not in booking and 'user_id' in booking:
-            user = mongo.db.users.find_one({'_id': booking['user_id']}, {'name': 1})
-            if user:
-                booking['user_name'] = user.get('name', 'Unknown User')
-        
-        # Ensure date is in string format for the template
-        if 'date' in booking and isinstance(booking['date'], datetime):
-            booking['date'] = booking['date'].strftime('%Y-%m-%d')
+    # Fetch all court bookings and filter similarly
+    all_court_bookings = list(mongo.db.court_bookings.find())
+    court_bookings = []
+    for b in all_court_bookings:
+        bdate = b.get('date')
+        if isinstance(bdate, datetime):
+            ds = bdate.strftime('%Y-%m-%d')
+        elif isinstance(bdate, str):
+            ds = bdate.split('T')[0][:10]
+        else:
+            continue
+
+        if ds >= start_str:
+            b['date'] = ds
+            # Add user name if not already present
+            if 'user_name' not in b and 'user_id' in b:
+                try:
+                    uid = b['user_id']
+                    if isinstance(uid, str):
+                        uid = ObjectId(uid)
+                    user = mongo.db.users.find_one({'_id': uid}, {'name': 1})
+                    if user:
+                        b['user_name'] = user.get('name', 'Unknown User')
+                except Exception:
+                    b['user_name'] = 'Unknown User'
+            court_bookings.append(b)
     
     # Get users count and basic info
     users = list(mongo.db.users.find(
@@ -1218,14 +1343,32 @@ def admin_dashboard():
         {'name': 1, 'email': 1, 'is_admin': 1, 'role': 1, 'created_at': 1}
     ).sort('created_at', -1))
     
-    # Get counts for the stats cards
+    # Get counts for the stats cards (use string-based comparison to match stored formats)
     total_users = mongo.db.users.count_documents({})
-    total_lessons = mongo.db.bookings.count_documents({
-        'date': {'$gte': today}
-    })
-    total_courts = mongo.db.court_bookings.count_documents({
-        'date': {'$gte': today}
-    })
+    # Count lessons and courts where date >= today_str
+    total_lessons = 0
+    for b in all_lesson_bookings:
+        bdate = b.get('date')
+        if isinstance(bdate, datetime):
+            ds = bdate.strftime('%Y-%m-%d')
+        elif isinstance(bdate, str):
+            ds = bdate.split('T')[0][:10]
+        else:
+            continue
+        if ds >= today_str:
+            total_lessons += 1
+
+    total_courts = 0
+    for b in all_court_bookings:
+        bdate = b.get('date')
+        if isinstance(bdate, datetime):
+            ds = bdate.strftime('%Y-%m-%d')
+        elif isinstance(bdate, str):
+            ds = bdate.split('T')[0][:10]
+        else:
+            continue
+        if ds >= today_str:
+            total_courts += 1
     
     # Get current prices for the dashboard
     prices = get_lesson_prices()
@@ -1241,6 +1384,66 @@ def admin_dashboard():
         today=today.strftime('%Y-%m-%d'),
         prices=prices
     )
+
+
+@app.route('/admin/courts')
+@admin_required
+def admin_courts():
+    from datetime import datetime
+    # Get all court bookings ordered by date,time
+    bookings = list(mongo.db.court_bookings.find().sort([('date', 1), ('time', 1)]))
+    # Ensure user names are present
+    for b in bookings:
+        if 'user_name' not in b and 'user_id' in b:
+            try:
+                uid = b['user_id']
+                if isinstance(uid, str):
+                    uid = ObjectId(uid)
+                user = mongo.db.users.find_one({'_id': uid}, {'name': 1, 'email': 1})
+                if user:
+                    b['user_name'] = user.get('name', '')
+                    b['user_email'] = user.get('email', '')
+            except Exception:
+                b['user_name'] = ''
+                b['user_email'] = ''
+
+    return render_template('admin_courts.html', bookings=bookings)
+
+
+@app.route('/admin/lessons-today')
+@admin_required
+def admin_lessons_today():
+    from datetime import datetime
+    today_str = datetime.now().strftime('%Y-%m-%d')
+
+    todays = []
+    for b in mongo.db.bookings.find().sort('time', 1):
+        bdate = b.get('date')
+        if isinstance(bdate, datetime):
+            ds = bdate.strftime('%Y-%m-%d')
+        elif isinstance(bdate, str):
+            ds = bdate.split('T')[0][:10]
+        else:
+            continue
+
+        if ds == today_str:
+            # Ensure user_name present
+            if 'user_name' not in b and 'user_id' in b:
+                try:
+                    uid = b['user_id']
+                    if isinstance(uid, str):
+                        uid = ObjectId(uid)
+                    user = mongo.db.users.find_one({'_id': uid}, {'name': 1, 'email': 1})
+                    if user:
+                        b['user_name'] = user.get('name', '')
+                        b['user_email'] = user.get('email', '')
+                except Exception:
+                    b['user_name'] = b.get('name', '')
+                    b['user_email'] = b.get('email', '')
+
+            todays.append(b)
+
+    return render_template('admin_lessons_today.html', bookings=todays, today=today_str)
 
 # ... (rest of the code remains the same)
     # Demote an admin to regular user

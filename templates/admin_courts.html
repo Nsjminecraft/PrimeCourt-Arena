@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>All Court Bookings</h1>
+        <div class="actions">
+            <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        {% if bookings %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Court</th>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Payment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for b in bookings %}
+                    <tr>
+                        <td>{{ b.date }}</td>
+                        <td>{{ b.time }}</td>
+                        <td>{{ b.court_id }}</td>
+                        <td>{{ b.get('user_name', b.get('name', '')) }}</td>
+                        <td>{{ b.get('user_email', b.get('email', '')) }}</td>
+                        <td>{{ b.get('payment_status', 'n/a') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+            <div class="alert alert-info">No court bookings found.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

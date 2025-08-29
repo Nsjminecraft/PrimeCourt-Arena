@@ -32,7 +32,7 @@
                         {% if is_booked %}
                             <span class="status booked">
                                 <i class="fas fa-lock"></i>
-                                Booked{% if is_booked.user_name %} by {{ is_booked.user_name }}{% endif %}
+                                Booked
                             </span>
                         {% else %}
                             {% if session.user_id %}
