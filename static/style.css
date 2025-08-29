@@ -721,6 +721,28 @@ footer p {
     margin-bottom: 6px;
 }
 
+/* Radio group layout for lessons */
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.radio-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.98rem;
+    color: var(--text-color);
+}
+
+.radio-label input[type="radio"] {
+    margin: 0;
+    transform: translateY(0);
+}
+
 /* Book button */
 .book-btn {
     width: 100%;
@@ -737,6 +759,29 @@ footer p {
 
 .book-btn:hover {
     background: #125ea6;
+}
+
+/* Ensure radio labels inside the lesson container are inline and the radio sits to the left */
+.lesson-container .radio-group {
+    display: flex;
+    flex-direction: column; /* change to row for horizontal layout */
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.lesson-container .radio-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.98rem;
+    color: var(--text-color);
+}
+
+.lesson-container .radio-label input[type="radio"] {
+    margin: 0;
+    width: auto;
+    height: auto;
 }
 
 /* Responsive Design */

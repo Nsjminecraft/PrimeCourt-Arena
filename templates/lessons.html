@@ -77,9 +77,11 @@
                     <h1 class="lessons-title">Badminton Lessons</h1>
                     <form id="lesson-booking-form">
                         <div class="form-section">
-                            <label><strong>Select Lesson Type:</strong></label><br>
-                            <input type="radio" name="lesson_type" value="group"> Group Lesson (5 Max)<br>
-                            <input type="radio" name="lesson_type" value="private"> Private Lesson<br>
+                            <label><strong>Select Lesson Type:</strong></label>
+                            <div class="radio-group">
+                                <label class="radio-label"><input type="radio" name="lesson_type" value="group"> Group Lesson (5 Max)</label>
+                                <label class="radio-label"><input type="radio" name="lesson_type" value="private"> Private Lesson</label>
+                            </div>
                         </div>
                         <div class="form-section">
                             <label for="time_slot"><strong>Select Time Slot:</strong></label><br>
