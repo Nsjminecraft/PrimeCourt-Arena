@@ -1507,6 +1507,29 @@ def promote_to_coach(user_id):
         flash('Error promoting user to coach. Please try again.', 'error')
     return redirect(url_for('admin_dashboard'))
 
+
+@app.route('/admin/demote/<user_id>')
+@admin_required
+def demote_user(user_id):
+    """Demote a user (admin only). Prevent self-demotion."""
+    from bson import ObjectId
+    try:
+        # Prevent self-demotion
+        if str(user_id) == session.get('user_id'):
+            flash('You cannot demote yourself.', 'error')
+            return redirect(request.referrer or url_for('admin_dashboard'))
+
+        mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {'is_admin': False, 'role': 'member', 'demoted_at': datetime.now()}},
+            upsert=False
+        )
+        flash('User demoted from admin successfully.', 'success')
+    except Exception as e:
+        print(f"Error demoting user: {e}")
+        flash('Error demoting user. Please try again.', 'error')
+    return redirect(request.referrer or url_for('admin_users'))
+
 # Custom Jinja2 filter for date formatting
 def format_datetime(value, format='%Y-%m-%d %H:%M'):
     if value is None:
