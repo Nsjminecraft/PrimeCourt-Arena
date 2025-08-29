@@ -1,12 +1,5 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app, mongo, stripe, stripe_public_key, MEMBERSHIP_PLANS
-
-LESSON_TYPES = {
-    'group': {'name': 'Group Lesson', 'price_per_hour': 2500, 'capacity': 6},
-    'private': {'name': 'Private Lesson', 'price_per_hour': 6000, 'capacity': 1},
-    'semi-private': {'name': 'Semi-Private Lesson', 'price_per_hour': 4000, 'capacity': 2},
-}
-
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
@@ -17,39 +10,20 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from threading import Thread
 from functools import wraps
-import stripe
-from dotenv import load_dotenv
 from zoneinfo import ZoneInfo
 
-# Load environment variables from .env file
-load_dotenv()
+LESSON_TYPES = {
+    'group': {'name': 'Group Lesson', 'price_per_hour': 2500, 'capacity': 6},
+    'private': {'name': 'Private Lesson', 'price_per_hour': 6000, 'capacity': 1},
+}
 
-# Initialize Stripe with environment variables
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
-stripe_public_key = os.getenv('STRIPE_PUBLIC_KEY')
+app.secret_key = "f=qSj{PuL:,&^IP^zgDL=ez@dcSM"
 
-# Helper: parse a time token like "9", "9 AM", "09:00", "9:00 AM"
-def _parse_time_token(token: str):
-    token = token.strip()
-    fmts = ["%I:%M %p", "%I %p", "%H:%M"]
-    for fmt in fmts:
-        try:
-            t = datetime.strptime(token, fmt)
-            return t.hour * 60 + t.minute
-        except Exception:
-            continue
-    return None
-
-# Helper: parse a time range to (start_minutes, end_minutes)
-def _parse_range_minutes(range_str: str):
-    parts = [p.strip() for p in str(range_str).split('-')]
-    if len(parts) != 2:
-        return None
-    s = _parse_time_token(parts[0])
-    e = _parse_time_token(parts[1])
-    if s is None or e is None:
-        return None
-    return s, e
+# Default lesson pricing (in dollars)
+DEFAULT_LESSON_PRICES = {
+    'private': 50.00,
+    'group': 25.00
+}
 
 def admin_required(f):
     @wraps(f)
@@ -60,13 +34,26 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-app.secret_key = "f=qSj{PuL:,&^IP^zgDL=ez@dcSM"
+def _parse_range_minutes(range_str: str):
+    parts = [p.strip() for p in str(range_str).split('-')]
+    if len(parts) != 2:
+        return None
+    s = _parse_time_token(parts[0])
+    e = _parse_time_token(parts[1])
+    if s is None or e is None:
+        return None
+    return s, e
 
-# Default lesson pricing (in dollars)
-DEFAULT_LESSON_PRICES = {
-    'private': 50.00,
-    'group': 25.00
-}
+def _parse_time_token(token: str):
+    token = token.strip()
+    fmts = ["%I:%M %p", "%I %p", "%H:%M"]
+    for fmt in fmts:
+        try:
+            t = datetime.strptime(token, fmt)
+            return t.hour * 60 + t.minute
+        except Exception:
+            continue
+    return None
 
 def get_lesson_prices():
     """Get lesson prices from database or return defaults if not set"""
@@ -373,90 +360,86 @@ def login_required(f):
     return decorated_function
 
 @app.route('/create-lesson-booking', methods=['POST'])
-@login_required
 def create_lesson_booking():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Please log in to book a lesson'}), 401
-    
-    try:
+    # Accept JSON (AJAX) or form-encoded POSTs
+    if request.is_json:
         data = request.get_json()
-        day_idx = int(data.get('day_idx'))
-        slot_idx = int(data.get('slot_idx'))
-        lesson_type = data.get('lesson_type')
-        recurring_weeks = int(data.get('recurring_weeks', 1))
-        
-        # Validate lesson type
-        if lesson_type not in ['private', 'group']:
-            return jsonify({'error': 'Invalid lesson type'}), 400
-        
-        # Get user info
-        user = mongo.db.users.find_one({'_id': ObjectId(session['user_id'])})
-        if not user:
-            return jsonify({'error': 'User not found'}), 404
-        
-        # Get lesson prices
-        prices = get_lesson_prices()
-        
-        # Calculate total amount based on lesson type and number of weeks
-        amount = prices[lesson_type] * recurring_weeks
-        
-        # Generate month slots to get the selected day
-        # Use configured timezone locally in this function
-        app_tz = os.getenv('APP_TIMEZONE', 'America/New_York')
-        from zoneinfo import ZoneInfo as _ZoneInfo
-        today = datetime.now(_ZoneInfo(app_tz))
-        lesson_days = generate_month_slots(today.year, today.month)
-        
-        if day_idx < 0 or day_idx >= len(lesson_days):
-            return jsonify({'error': 'Invalid day selected'}), 400
-            
-        selected_day = lesson_days[day_idx]
-        if slot_idx < 0 or slot_idx >= len(selected_day['slots']):
-            return jsonify({'error': 'Invalid time slot selected'}), 400
-            
-        slot = selected_day['slots'][slot_idx]
-        
-        # Create a payment session with Stripe
-        try:
-            # Create a new Checkout Session for the order
-            checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                line_items=[{
-                    'price_data': {
-                        'currency': 'usd',
-                        'product_data': {
-                            'name': f'{lesson_type.title()} Lesson' + (f' ({recurring_weeks} weeks)' if recurring_weeks > 1 else ''),
-                            'description': f'Booking for {selected_day["date"]} at {slot["time"]}'
-                        },
-                        'unit_amount': int(amount * 100),  # Convert to cents
-                    },
-                    'quantity': 1,
-                }],
-                mode='payment',
-                success_url=url_for('lesson_booking_success', success=True, session_id='{CHECKOUT_SESSION_ID}', 
-                                  day_idx=day_idx, slot_idx=slot_idx, lesson_type=lesson_type, 
-                                  recurring_weeks=recurring_weeks, _external=True),
-                cancel_url=url_for('lessons', _external=True),
-                metadata={
-                    'user_id': str(session['user_id']),
-                    'day_idx': str(day_idx),
-                    'slot_idx': str(slot_idx),
-                    'lesson_type': lesson_type,
-                    'recurring_weeks': str(recurring_weeks),
-                    'date': selected_day['date'],
-                    'time': slot['time']
-                }
-            )
-            
-            return jsonify({'sessionId': checkout_session['id']})
-            
-        except Exception as e:
-            print(f"Error creating Stripe session: {str(e)}")
-            return jsonify({'error': 'Error creating payment session'}), 500
-    
+    else:
+        data = request.form.to_dict()
+
+    lesson_type = data.get('lesson_type')
+    slot_idx = data.get('slot_idx')
+    day_idx = data.get('day_idx')
+    name = data.get('name') or data.get('student_name') or session.get('user_name')
+    contact = data.get('contact') or data.get('student_email') or session.get('user_email')
+    recurring_weeks = int(data.get('recurring_weeks') or 1)
+
+    # Map lesson_type to price and description
+    if lesson_type == 'group':
+        # price_amount is in CAD (dollars). Stripe expects the smallest currency unit (cents) in unit_amount.
+        price_amount = 25.00  # CAD $25.00 for a group lesson
+        description = 'Group Lesson'
+    elif lesson_type == 'private':
+        price_amount = 60.00  # CAD $60.00 for a private lesson
+        description = 'Private Lesson'
+    else:
+        return jsonify({'error': 'Invalid lesson type'}), 400
+
+    # Ensure Stripe API key is configured
+    if not getattr(stripe, 'api_key', None):
+        err = 'Stripe API key not configured on server. Set STRIPE_SECRET_KEY.'
+        print(err)
+        return jsonify({'error': err}), 500
+
+    try:
+        # Create Checkout Session
+        # Try to include concrete date/time in metadata when provided so success handler can create bookings
+        metadata = {
+            'name': name or '',
+            'lesson_type': lesson_type,
+            'slot_idx': str(slot_idx or ''),
+            'day_idx': str(day_idx or ''),
+            'recurring_weeks': str(recurring_weeks)
+        }
+
+        # If user is logged in, attach user id
+        if 'user_id' in session:
+            metadata['user_id'] = str(session['user_id'])
+
+        # If date/time provided in POST, attach them
+        if data.get('date'):
+            metadata['date'] = data.get('date')
+        if data.get('time'):
+            metadata['time'] = data.get('time')
+
+        session_obj = stripe.checkout.Session.create(
+            submit_type='book',
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'cad',
+                    'product_data': {'name': f'PrimeCourt - {description}'},
+                    'unit_amount': int(price_amount * 100),
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('lesson_booking_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('lessons', _external=True) + '?status=cancel',
+            customer_email=contact,
+            metadata=metadata
+        )
+
+        # If AJAX request, return session id and url for redirect by Stripe.js
+        if request.is_json:
+            return jsonify({'sessionId': session_obj.id, 'url': session_obj.url})
+
+        # For non-AJAX (form) requests, redirect user to Stripe Checkout page
+        return redirect(session_obj.url, code=303)
+
     except Exception as e:
-        print(f"Error creating lesson booking: {str(e)}")
-        return jsonify({'error': 'An error occurred while processing your booking'}), 500
+        print('Error creating Stripe session:', str(e))
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/lesson-booking-success')
 def lesson_booking_success():
@@ -591,7 +574,7 @@ def lesson_booking_success():
         else:
             flash('No available slots were booked. Please try again.', 'error')
         
-        return redirect(url_for('lessons', day=day_idx, month=selected_date.month, year=selected_date.year))
+        return redirect(url_for('lessons', day=day_idx, slot=slot_idx))
         
         # Process the booking
         success_count = 0

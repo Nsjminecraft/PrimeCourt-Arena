@@ -75,34 +75,37 @@
                 <h2>Badminton Lessons</h2>
                 <div class="lessons-card" style="max-width: 700px; width: 100%; min-width: 350px; margin: 0 auto; padding: 2.5rem 2rem; font-size: 1.15rem;">
                     <h1 class="lessons-title">Badminton Lessons</h1>
-                    <!-- Booking form goes here -->
-                    <div class="form-section">
-                        <label><strong>Select Lesson Type:</strong></label><br>
-                        <input type="radio" name="lesson_type" value="group"> Group Lesson (2-10) (per slot)<br>
-                        <input type="radio" name="lesson_type" value="private"> Private Lesson (1-2) (per slot)<br>
-                    </div>
-                    <div class="form-section">
-                        <label for="time_slot"><strong>Select Time Slot:</strong></label><br>
-                        <select name="time_slot" id="time_slot">
-                            <option value="">-- Select a time slot --</option>
-                            {% for slot in selected_day.slots %}
-                                <option value="{{ loop.index0 }}"
-                                    {% if slot.is_past %}disabled style="color: #888;"{% endif %}>
-                                    {{ slot.time }} (Group, {{ slot.group|length }} booked)
-                                    {% if slot.is_past %} - Past{% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="form-section">
-                        <label for="name"><strong>Your Name:</strong></label>
-                        <input type="text" name="name" id="name">
-                    </div>
-                    <div class="form-section">
-                        <label for="contact"><strong>Contact:</strong></label>
-                        <input type="text" name="contact" id="contact">
-                    </div>
-                    <button type="submit" class="book-btn">Book Slot</button>
+                    <form id="lesson-booking-form">
+                        <div class="form-section">
+                            <label><strong>Select Lesson Type:</strong></label><br>
+                            <input type="radio" name="lesson_type" value="group"> Group Lesson (5 Max)<br>
+                            <input type="radio" name="lesson_type" value="private"> Private Lesson<br>
+                        </div>
+                        <div class="form-section">
+                            <label for="time_slot"><strong>Select Time Slot:</strong></label><br>
+                            <select name="time_slot" id="time_slot">
+                                <option value="">-- Select a time slot --</option>
+                                {% for slot in selected_day.slots %}
+                                    <option value="{{ loop.index0 }}"
+                                        {% if slot.is_past %}disabled style="color: #888;"{% endif %}>
+                                        {{ slot.time }} (Group, {{ slot.group|length }} booked)
+                                        {% if slot.is_past %} - Past{% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-section">
+                            <label for="name"><strong>Your Name:</strong></label>
+                            <input type="text" name="name" id="student_name">
+                        </div>
+                        <div class="form-section">
+                            <label for="contact"><strong>Contact:</strong></label>
+                            <input type="text" name="contact" id="student_email">
+                        </div>
+                        <button type="submit" class="book-btn" id="book-now-btn">Book Slot</button>
+                        <input type="hidden" id="slot_idx_select" name="slot_idx_select" value="">
+                        <div id="payment-error" class="alert alert-danger d-none"></div>
+                    </form>
                 </div>
             </div>
         {% endif %}
@@ -118,83 +121,69 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('lesson-booking-form');
     if (!form) return;
 
-    const bookNowBtn = document.getElementById('book-now-btn');
-    const errorDiv = document.getElementById('payment-error');
-    const studentNameInput = document.getElementById('student_name');
-    const studentEmailInput = document.getElementById('student_email');
-    const hiddenSlotInput = document.getElementById('slot_idx_select');
+    // Expose slot data for the selected day so JS can include exact time/date in the POST
+    const lessonSlots = {{ (selected_day.slots if selected_day else []) | tojson }};
+    const dayDate = "{{ selected_day.date if selected_day else '' }}";
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('status') === 'success') {
-        document.getElementById('booking-success-alert').classList.remove('d-none');
-    } else if (urlParams.get('status') === 'cancel') {
-        document.getElementById('booking-cancelled-alert').classList.remove('d-none');
-    }
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
 
-    function updateButtonState() {
-        const lessonTypeSelected = document.querySelector('input[name="lesson_type"]:checked');
-        const slotSelected = document.querySelector('.time-slot-btn.selected');
-        const nameFilled = studentNameInput.value.trim() !== '';
-        const emailFilled = studentEmailInput.value.trim() !== '';
-        bookNowBtn.disabled = !(lessonTypeSelected && slotSelected && nameFilled && emailFilled);
-    }
+        // Collect form data
+        const lessonType = form.lesson_type.value;
+        const slotIdx = form.time_slot.value;
+        const dayIdx = "{{ selected_day_idx|default(0, true) }}";
+        const name = form.student_name.value;
+        const contact = form.student_email.value;
 
-    document.querySelectorAll('input[name="lesson_type"]').forEach(radio => {
-        radio.addEventListener('change', updateButtonState);
-    });
+        // Validate selection
+        if (!slotIdx) {
+            alert('Please choose a time slot.');
+            return;
+        }
 
-    document.querySelectorAll('.time-slot-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            if (this.disabled) return;
-            document.querySelectorAll('.time-slot-btn.selected').forEach(b => b.classList.remove('selected'));
-            this.classList.add('selected');
-            hiddenSlotInput.value = this.dataset.slotIdx;
-            updateButtonState();
-        });
-    });
+        // Determine the selected slot time
+        const slotIdxNum = parseInt(slotIdx, 10);
+        const slotTime = lessonSlots && lessonSlots[slotIdxNum] ? lessonSlots[slotIdxNum].time : null;
 
-    studentNameInput.addEventListener('input', updateButtonState);
-    studentEmailInput.addEventListener('input', updateButtonState);
-
-    form.addEventListener('submit', function(event) {
-        event.preventDefault();
-        bookNowBtn.classList.add('loading');
-        bookNowBtn.disabled = true;
-        errorDiv.classList.add('d-none');
-
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
-
-        fetch('/create-lesson-booking', {
+        // Send POST request to backend
+        const response = await fetch('/create-lesson-booking', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        })
-        .then(response => response.json())
-        .then(session => {
-            if (session.error) {
-                throw new Error(session.error);
-            }
-            return stripe.redirectToCheckout({ sessionId: session.sessionId });
-        })
-        .then(result => {
-            if (result.error) {
-                throw new Error(result.error.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            errorDiv.textContent = error.message || 'An error occurred while processing your booking.';
-            errorDiv.classList.remove('d-none');
-            window.scrollTo({
-                top: errorDiv.offsetTop - 20,
-                behavior: 'smooth'
-            });
-        })
-        .finally(() => {
-            bookNowBtn.disabled = false;
-            bookNowBtn.classList.remove('loading');
+            body: JSON.stringify({
+                lesson_type: lessonType,
+                slot_idx: slotIdx,
+                day_idx: dayIdx,
+                name: name,
+                contact: contact,
+                date: dayDate,
+                time: slotTime,
+                recurring_weeks: 1
+            })
         });
+
+        const result = await response.json();
+        console.log('Stripe booking response:', result);
+
+        // If Stripe session id returned, attempt Stripe.js redirect and fallback to session URL
+        if (result.sessionId) {
+            const res = await stripe.redirectToCheckout({ sessionId: result.sessionId });
+            // redirectToCheckout returns an object on error; if it doesn't navigate, fallback
+            if (res && res.error) {
+                console.warn('stripe.redirectToCheckout returned error:', res.error);
+                if (result.url) window.location = result.url;
+            }
+        } else if (result.url) {
+            // Fallback: if server returned a direct URL, navigate there
+            window.location = result.url;
+        } else {
+            const errEl = document.getElementById('payment-error');
+            if (errEl) {
+                errEl.classList.remove('d-none');
+                errEl.textContent = result.error || 'Error creating payment session. Check server logs.';
+            } else {
+                alert(result.error || 'Error creating payment session. Check server logs.');
+            }
+        }
     });
 });
 </script>
