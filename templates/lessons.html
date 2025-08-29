@@ -88,13 +88,17 @@
                             <select name="time_slot" id="time_slot">
                                 <option value="">-- Select a time slot --</option>
                                 {% for slot in selected_day.slots %}
+                                    {# data attributes for JS: group count and whether a private booking exists #}
                                     <option value="{{ loop.index0 }}"
+                                        data-group-count="{{ slot.group|length }}"
+                                        data-has-private="{{ '1' if slot.private else '0' }}"
                                         {% if slot.is_past %}disabled style="color: #888;"{% endif %}>
-                                        {{ slot.time }} (Group, {{ slot.group|length }} booked)
+                                        {{ slot.time }} — {% if slot.private %}Private booked{% else %}Group ({{ slot.group|length }} booked){% endif %}
                                         {% if slot.is_past %} - Past{% endif %}
                                     </option>
                                 {% endfor %}
                             </select>
+                            <div id="slot-info" class="slot-info" style="margin-top:8px; color: #555; font-size:0.95rem;"></div>
                         </div>
                         <div class="form-section">
                             <label for="name"><strong>Your Name:</strong></label>
@@ -187,6 +191,29 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+
+    // Update slot info when selection changes
+    const slotSelect = document.getElementById('time_slot');
+    const slotInfo = document.getElementById('slot-info');
+    if (slotSelect && slotInfo) {
+        function updateSlotInfo() {
+            const opt = slotSelect.options[slotSelect.selectedIndex];
+            if (!opt || !opt.value) {
+                slotInfo.textContent = '';
+                return;
+            }
+            const groupCount = parseInt(opt.getAttribute('data-group-count') || '0', 10);
+            const hasPrivate = opt.getAttribute('data-has-private') === '1';
+            if (hasPrivate) {
+                slotInfo.textContent = 'This time has a private lesson booked.';
+            } else {
+                slotInfo.textContent = `Group bookings: ${groupCount} / 5`;
+            }
+        }
+        slotSelect.addEventListener('change', updateSlotInfo);
+        // initialize
+        updateSlotInfo();
+    }
 });
 </script>
 {% endblock %}
