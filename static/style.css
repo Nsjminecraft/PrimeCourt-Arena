@@ -189,6 +189,9 @@ img {
     box-shadow: 0 2px 8px rgba(32,80,129,0.04);
 }
 
+/* Ensure the navbar can be the positioning context for the absolute hamburger */
+.navbar { position: relative; }
+
 .navbar .container {
     display: flex;
     align-items: center;
@@ -858,7 +861,8 @@ footer p {
     }
 }
 
-@media (max-width: 700px) {
+/* Show hamburger at and below 900px for more consistent UX */
+@media (max-width: 900px) {
     .contact-grid {
         flex-direction: column;
         gap: 1.5rem;
@@ -902,7 +906,7 @@ footer p {
         font-size: 1.1rem;
     }
     .navbar-toggle {
-        display: block;
+        display: block !important;
         background: none;
         border: none;
         font-size: 2rem;
@@ -913,9 +917,52 @@ footer p {
     }
 }
 
-/* Hide hamburger on desktop */
-.navbar-toggle {
+/* Mobile nav overlay to dim page when menu open */
+.nav-overlay {
     display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(0,0,0,0.35);
+    z-index: 1000;
+}
+
+/* Keep logo visible on mobile and ensure nav slides in from right */
+@media (max-width: 700px) {
+    .logo { z-index: 1200; position: relative; }
+    .nav-links { right: 0; left: auto; }
+}
+
+/* Ensure mobile nav is above the overlay */
+@media (max-width: 700px) {
+    .nav-links { z-index: 1101; }
+}
+
+/* Hide hamburger on desktop (>=901px) */
+@media (min-width: 901px) {
+    .navbar-toggle { display: none !important; }
+}
+
+/* Strong mobile positioning for the hamburger so it remains visible */
+@media (max-width: 900px) {
+    .navbar-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 44px;
+        height: 44px;
+        background: transparent;
+        border: none;
+        padding: 6px;
+        z-index: 2000;
+    }
+    .navbar-toggle svg { display: block; }
 }
 
 /* Hide base-level flash alerts on this page when not showing booking result */

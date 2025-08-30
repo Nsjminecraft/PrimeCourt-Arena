@@ -62,10 +62,15 @@
     <nav class="navbar">
         <div class="container">
             <a href="{{ url_for('index') }}" class="logo">PrimeCourt Arena</a>
-            <button class="navbar-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">
-                <i class="fas fa-bars"></i>
+            <button class="navbar-toggle" aria-label="Toggle navigation" aria-controls="primary-navigation" aria-expanded="false" onclick="toggleNav()">
+                <!-- Inline SVG hamburger (reliable even if external icon fonts fail) -->
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                    <rect y="5" width="24" height="2" rx="1" fill="#205081"></rect>
+                    <rect y="11" width="24" height="2" rx="1" fill="#205081"></rect>
+                    <rect y="17" width="24" height="2" rx="1" fill="#205081"></rect>
+                </svg>
             </button>
-            <ul class="nav-links">
+            <ul id="primary-navigation" class="nav-links">
                 <li><a href="{{url_for('index')}}">Home</a></li>
                 <li><a href="{{url_for('lessons')}}">Lessons</a></li>
                 <li><a href="{{url_for('membership')}}">Membership</a></li>
@@ -86,18 +91,50 @@
                     <li><a href="{{ url_for('signup') }}"><i class="fas fa-user-plus"></i></a></li>
                 {% endif %}
             </ul>
+            <!-- overlay shown when mobile nav is open -->
+            <div class="nav-overlay" onclick="closeNav()" aria-hidden="true"></div>
         </div>
     </nav>
     {% block content %}
 
     {% endblock %}
     <script>
-        // Toggle mobile menu
+        // Mobile nav toggle helpers
+        function toggleNav() {
+            const nav = document.querySelector('.nav-links');
+            const overlay = document.querySelector('.nav-overlay');
+            const toggle = document.querySelector('.navbar-toggle');
+            if (!nav) return;
+            const willOpen = !nav.classList.contains('open');
+            nav.classList.toggle('open');
+            if (overlay) overlay.style.display = willOpen ? 'block' : 'none';
+            if (toggle) toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        }
+
+        function closeNav() {
+            const nav = document.querySelector('.nav-links');
+            const overlay = document.querySelector('.nav-overlay');
+            const toggle = document.querySelector('.navbar-toggle');
+            if (!nav) return;
+            nav.classList.remove('open');
+            if (overlay) overlay.style.display = 'none';
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        // Close menu when clicking outside (desktop or mobile)
         document.addEventListener('click', function(e) {
             const nav = document.querySelector('.nav-links');
             const toggle = document.querySelector('.navbar-toggle');
-            if (nav && nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) {
+            const overlay = document.querySelector('.nav-overlay');
+            if (nav && nav.classList.contains('open')) {
+                // If click is on toggle, leave it (toggleNav handles it)
+                if (toggle && toggle.contains(e.target)) return;
+                // If click inside nav, leave it
+                if (nav.contains(e.target)) return;
+                // Otherwise close
                 nav.classList.remove('open');
+                if (overlay) overlay.style.display = 'none';
+                if (toggle) toggle.setAttribute('aria-expanded', 'false');
             }
         });
 
