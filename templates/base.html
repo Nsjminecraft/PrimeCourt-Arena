@@ -7,6 +7,8 @@
     <title>PrimeCourt Arena</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Material Icons used in some templates -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         .calendar-nav {
             display: flex;
@@ -72,6 +74,8 @@
                 {% if session.user_id %}
                     {% if session.is_admin %}
                         <li><a href="{{ url_for('admin_dashboard') }}"><i class="fas fa-shield-alt"></i> Admin</a></li>
+                    {% elif session.is_coach %}
+                        <li><a href="{{ url_for('coach_dashboard') }}"><i class="fas fa-chalkboard-teacher"></i> Coach</a></li>
                     {% else %}
                         <li><a href="{{ url_for('profile') }}"><i class="fas fa-user"></i> Profile</a></li>
                     {% endif %}

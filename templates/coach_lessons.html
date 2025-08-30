@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+  <div class="row">
+    <div class="col s12">
+      <div class="card">
+        <div class="card-content">
+          <span class="card-title">My Lessons</span>
+          <p class="flow-text">Upcoming lessons for {{ session.user_name }}.</p>
+
+          <form method="get" action="{{ url_for('coach_lessons') }}">
+            <label for="weekday">Show weekday:</label>
+            <select name="weekday" id="weekday" onchange="this.form.submit()">
+              {% for i,name in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
+                <option value="{{ i }}" {% if selected_weekday == i %}selected{% endif %}>{{ name }}</option>
+              {% endfor %}
+            </select>
+          </form>
+
+          {% if coach_lessons %}
+            <div class="collection">
+              {% for lesson in coach_lessons %}
+              <div class="collection-item">
+                <div class="row" style="margin-bottom:0;">
+                  <div class="col s8">
+                    <strong>{{ lesson.get('lesson_type','Lesson')|title }}</strong>
+                    {% if lesson.get('name') %} — {{ lesson.get('name') }}{% endif %}
+                    <div><i class="material-icons tiny">event</i> {{ lesson.get('date') }} &nbsp; <i class="material-icons tiny">schedule</i> {{ lesson.get('time') }}</div>
+                  </div>
+                  <div class="col s4 right-align">
+                    <span class="muted">Managed automatically</span>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="card-panel blue lighten-5">
+              <p class="blue-text">No upcoming lessons for this weekday.</p>
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

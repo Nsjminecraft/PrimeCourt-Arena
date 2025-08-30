@@ -6,47 +6,54 @@
         <div class="col s12">
             <div class="card">
                 <div class="card-content">
-                    <span class="card-title">Coach Dashboard</span>
+                    <h1 class="card-title">Coach Dashboard</h1>
                     <p class="flow-text">Welcome back, {{ session.user_name }}!</p>
                     
                     <div class="divider"></div>
-                    
+
                     <div class="section">
                         <h5>Upcoming Lessons</h5>
-                        {% if coach_lessons %}
-                            <div class="collection">
-                                {% for lesson in coach_lessons %}
-                                <div class="collection-item">
-                                    <div class="row" style="margin-bottom: 0;">
-                                        <div class="col s8">
-                                            <span class="title">
-                                                {{ lesson.type|title }} Lesson
-                                                {% if lesson.student_name %}
-                                                    with {{ lesson.student_name }}
-                                                {% endif %}
-                                            </span>
-                                            <p>
-                                                <i class="material-icons tiny">event</i> 
-                                                {{ lesson.start_time.strftime('%A, %B %d, %Y') }}
-                                                <br>
-                                                <i class="material-icons tiny">schedule</i> 
-                                                {{ lesson.start_time.strftime('%I:%M %p') }} - {{ lesson.end_time.strftime('%I:%M %p') }}
-                                            </p>
-                                        </div>
-                                        <div class="col s4 right-align">
-                                            <a href="#" class="btn-small waves-effect waves-light">
-                                                <i class="material-icons left">edit</i>Edit
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div style="margin-bottom:12px;">
+                            <a class="btn btn-primary" href="{{ url_for('coach_availability') }}">
+                                <i class="fas fa-calendar-check" style="margin-right:8px;"></i>
+                                Set Availability
+                            </a>
+                            <a class="btn btn-danger" href="{{ url_for('coach_cancel_days') }}" style="margin-left:8px;">
+                                <i class="fas fa-times-circle" style="margin-right:8px;"></i>
+                                Cancel Days
+                            </a>
+                        </div>
+                        <form method="get" action="{{ url_for('coach_dashboard') }}">
+                            <label for="weekday">Show weekday:</label>
+                            <select name="weekday" id="weekday" onchange="this.form.submit()">
+                                {% for i,name in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
+                                    <option value="{{ i }}" {% if selected_weekday == i %}selected{% endif %}>{{ name }}</option>
                                 {% endfor %}
+                            </select>
+                        </form>
+
+                        {% if coach_lessons %}
+                            <div class="col s12 m8">
+                                <h5>My Lessons</h5>
+                                <p>Lessons are managed on a separate page to keep your dashboard focused. <a href="{{ url_for('coach_lessons') }}">View My Lessons</a></p>
                             </div>
                         {% else %}
                             <div class="card-panel blue lighten-5">
-                                <p class="blue-text">You don't have any upcoming lessons scheduled.</p>
+                                <p class="blue-text">You don't have any lessons scheduled for this weekday.</p>
                             </div>
                         {% endif %}
+
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="section">
+                        <h5>Profile</h5>
+                        <p>Manage your public profile on the separate My Profile page.</p>
+                        <a class="btn btn-primary" href="{{ url_for('coach_profile_edit') }}">
+                            <i class="fas fa-user-edit" style="margin-right:8px;"></i>
+                            My Profile
+                        </a>
                     </div>
                     
                     <div class="divider"></div>
@@ -60,12 +67,7 @@
                                 </a>
                             </div>
                             <div class="col s12 m4">
-                                <a href="#" class="btn-large waves-effect waves-light full-width">
-                                    <i class="material-icons left">event_available</i>Set Availability
-                                </a>
-                            </div>
-                            <div class="col s12 m4">
-                                <a href="#" class="btn-large waves-effect waves-light full-width">
+                                <a href="{{ url_for('coach_profile_edit') }}" class="btn-large waves-effect waves-light full-width">
                                     <i class="material-icons left">person</i>My Profile
                                 </a>
                             </div>
@@ -75,9 +77,9 @@
             </div>
         </div>
     </div>
-    
+
     <div class="row">
-        <div class="col s12 m6
+        <div class="col s12 m6">
             <div class="card">
                 <div class="card-content">
                     <span class="card-title">Recent Activity</span>
@@ -135,6 +137,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize modals
     var modals = document.querySelectorAll('.modal');
     M.Modal.init(modals);
+    
+    // No manual quick-action handlers: lessons are auto-marked done after their end time
 });
 </script>
 {% endblock %}

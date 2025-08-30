@@ -6,7 +6,7 @@
         <div class="hero-content">
             <h1>Welcome to PrimeCourt Arena</h1>
             <p>Premier sports facility for badminton, basketball, and more</p>
-            <a href="#membership" class="cta-button">Join Now</a>
+            <a href="membership" class="cta-button">Join Now</a>
         </div>
     </header>
 
@@ -34,13 +34,39 @@
         </div>
     </section>
 
+    <!-- Coaches Section -->
+    <section id="coaches" class="section bg-light">
+        <div class="container">
+            <h2>Meet Our Coaches</h2>
+            <p>Learn from experienced coaches. Click a card to view full profile.</p>
+
+            <div class="coach-grid" style="margin-top:1.5rem;">
+                {% if coaches %}
+                    {% for coach in coaches %}
+                    <div class="coach-card">
+                        <a href="{{ url_for('coach_profile', coach_id=coach._id|string) }}">
+                            <div class="coach-avatar">
+                                <img src="{{ url_for('static', filename=coach.picture) if coach.picture else url_for('static', filename='default_coach.png') }}" alt="{{ coach.name }}">
+                            </div>
+                            <h3 class="coach-name">{{ coach.name }}</h3>
+                            <p class="coach-bio">{{ coach.bio or 'Professional coach' }}</p>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>No coaches available right now.</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
     <!-- Court Booking Section -->
     <section id="booking" class="section bg-light">
         <div class="container">
             <h2>Book a Court</h2>
             <div class="booking-widget">
                 <p>Reserve your court online 24/7</p>
-                <a href="#book-now" class="cta-button">Book Now</a>
+                <a href="lessons" class="cta-button">Book Now</a>
             </div>
         </div>
     </section>

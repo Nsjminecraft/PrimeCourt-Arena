@@ -63,7 +63,12 @@ import routes
 
 @app.route('/')
 def index():
-    return render_template('main.html')
+    # Load active coaches to show on the homepage
+    try:
+        coaches = list(mongo.db.users.find({'role': 'coach', 'is_active': True}, {'password': 0}))
+    except Exception:
+        coaches = []
+    return render_template('main.html', coaches=coaches)
 
 @app.route('/contact')
 def contact():

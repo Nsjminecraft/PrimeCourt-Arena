@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="section">
+  <div class="container">
+    <h2>Our Coaches</h2>
+    <p>Browse our coaching team and view individual profiles for availability and specialties.</p>
+
+    <div class="features-grid" style="margin-top: 1.5rem;">
+      {% for coach in coaches %}
+      <div class="feature">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:96px; height:96px; border-radius:50%; overflow:hidden; background:#fff; display:flex; align-items:center; justify-content:center;">
+            <img src="{{ url_for('static', filename=coach.picture) if coach.picture else url_for('static', filename='default_coach.png') }}" alt="{{ coach.name }}" style="width:96px; height:96px; object-fit:cover;">
+          </div>
+          <div>
+            <h3 style="margin:0;">{{ coach.name }}</h3>
+            <p style="color:#555; margin:0;">{{ coach.bio or 'Professional coach' }}</p>
+          </div>
+        </div>
+        {% if coach.specialties %}
+          <p style="margin-top:8px;"><strong>Specialties:</strong> {{ coach.specialties | join(', ') }}</p>
+        {% endif %}
+        <p><strong>Email:</strong> <a href="mailto:{{ coach.email }}">{{ coach.email }}</a></p>
+  <p style="margin-top: 12px;"><a class="cta-button" href="{{ url_for('coach_profile', coach_id=coach._id|string) }}">View profile</a></p>
+      </div>
+      {% else %}
+      <p>No coaches found.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

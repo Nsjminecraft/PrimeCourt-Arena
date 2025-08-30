@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="section">
+  <div class="container">
+    <h2>{{ coach.name }}</h2>
+    <div style="display:flex; align-items:center; gap:18px; margin-bottom:12px;">
+      <div style="width:220px; height:220px; border-radius:8px; overflow:hidden; background:#fff; border:1px solid #eee;">
+        <img src="{{ url_for('static', filename=coach.picture) if coach.picture else url_for('static', filename='default_coach.png') }}" alt="{{ coach.name }}" style="width:220px; height:220px; object-fit:cover; display:block;">
+      </div>
+      <div>
+        <p style="color:#555; margin:0;">{{ coach.bio or 'Professional coach with experience in private and group lessons.' }}</p>
+        {% if coach.specialties %}
+          <p style="margin-top:6px;"><strong>Specialties:</strong> {{ coach.specialties | join(', ') }}</p>
+        {% endif %}
+      </div>
+    </div>
+    
+    <p><strong>Contact:</strong> <a href="mailto:{{ coach.email }}">{{ coach.email }}</a></p>
+
+  <!-- Public profile: basic bio, specialties and contact only -->
+
+    <p style="margin-top:1rem;"><a href="{{ url_for('coaches') }}">Back to coaches</a></p>
+  </div>
+</div>
+{% endblock %}
