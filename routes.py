@@ -1,19 +1,51 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app, mongo, stripe, stripe_public_key, MEMBERSHIP_PLANS
 
-# Defensive: some deployment environments may import routes before PyMongo is fully
-# initialized and `mongo` can end up as None. If that happens, initialize a
-# fallback PyMongo instance here so route code that expects `mongo.db` works.
+# Defensive initialization: some deployment/import orders leave `mongo` as None
+# (or without a working .db). Try to ensure `mongo.db` is available by:
+# 1. using the imported `mongo` if it already has `.db`;
+# 2. attempting to create a `flask_pymongo.PyMongo(app)` instance;
+# 3. falling back to a direct `pymongo.MongoClient` and exposing a lightweight
+#    module-level `mongo` object with a `.db` attribute.
 try:
-    # Accessing .db will raise if mongo is None or misconfigured
-    _ = mongo.db
+    if mongo is None or getattr(mongo, 'db', None) is None:
+        raise Exception('mongo unavailable')
 except Exception:
+    initialized = False
+    # Try Flask-PyMongo first (preferred)
     try:
         from flask_pymongo import PyMongo
+        print('routes.py: attempting to initialize PyMongo(app) as fallback')
         mongo = PyMongo(app)
-    except Exception:
-        # If even this fails, leave mongo as-is; errors will surface at runtime
-        pass
+        if getattr(mongo, 'db', None) is not None:
+            initialized = True
+            print('routes.py: initialized flask_pymongo successfully')
+    except Exception as e:
+        print(f'routes.py: flask_pymongo init failed: {e}')
+
+    if not initialized:
+        # Final fallback: use raw pymongo MongoClient and expose a `.db`
+        try:
+            from pymongo import MongoClient
+            uri = app.config.get('MONGO_URI') or os.getenv('MONGO_URI') or 'mongodb://localhost:27017/primecourt'
+            print(f'routes.py: falling back to pymongo MongoClient using URI: {uri}')
+            client = MongoClient(uri)
+            try:
+                # Use default database from URI if present
+                db = client.get_default_database()
+                if db is None:
+                    db = client['primecourt']
+            except Exception:
+                db = client['primecourt']
+
+            class _SimpleMongo:
+                pass
+            mongo = _SimpleMongo()
+            mongo.db = db
+            print('routes.py: pymongo fallback initialized; mongo.db is available')
+            initialized = True
+        except Exception as e:
+            print(f'routes.py: pymongo fallback failed: {e}')
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
