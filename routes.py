@@ -1,5 +1,19 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app, mongo, stripe, stripe_public_key, MEMBERSHIP_PLANS
+
+# Defensive: some deployment environments may import routes before PyMongo is fully
+# initialized and `mongo` can end up as None. If that happens, initialize a
+# fallback PyMongo instance here so route code that expects `mongo.db` works.
+try:
+    # Accessing .db will raise if mongo is None or misconfigured
+    _ = mongo.db
+except Exception:
+    try:
+        from flask_pymongo import PyMongo
+        mongo = PyMongo(app)
+    except Exception:
+        # If even this fails, leave mongo as-is; errors will surface at runtime
+        pass
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
