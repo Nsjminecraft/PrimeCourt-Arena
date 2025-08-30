@@ -108,6 +108,16 @@
                             <label for="contact"><strong>Contact:</strong></label>
                             <input type="text" name="contact" id="student_email">
                         </div>
+                        <div class="form-section">
+                            <label for="recurring_weeks"><strong>Recurring (weeks):</strong></label><br>
+                            <select name="recurring_weeks" id="recurring_weeks">
+                                <option value="1">One-off (1 week)</option>
+                                {% for i in range(2,13) %}
+                                    <option value="{{ i }}">{{ i }} weeks</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
                         <button type="submit" class="book-btn" id="book-now-btn">Book Slot</button>
                         <input type="hidden" id="slot_idx_select" name="slot_idx_select" value="">
                         <div id="payment-error" class="alert alert-danger d-none"></div>
@@ -140,8 +150,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const dayIdx = "{{ selected_day_idx|default(0, true) }}";
         const name = form.student_name.value;
         const contact = form.student_email.value;
+        const recurringWeeks = parseInt((form.recurring_weeks && form.recurring_weeks.value) || '1', 10) || 1;
 
         // Validate selection
+        if (!lessonType) {
+            alert('Please choose a lesson type (Group or Private).');
+            return;
+        }
         if (!slotIdx) {
             alert('Please choose a time slot.');
             return;
@@ -163,11 +178,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 contact: contact,
                 date: dayDate,
                 time: slotTime,
-                recurring_weeks: 1
+                recurring_weeks: recurringWeeks
             })
         });
 
-        const result = await response.json();
+        let result = null;
+        try {
+            result = await response.json();
+        } catch (e) {
+            const text = await response.text();
+            console.error('Create booking non-json response', response.status, text);
+            alert('Server error: ' + (text || response.status));
+            return;
+        }
         console.log('Stripe booking response:', result);
 
         // If Stripe session id returned, attempt Stripe.js redirect and fallback to session URL

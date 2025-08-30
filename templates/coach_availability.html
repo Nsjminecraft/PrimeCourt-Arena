@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+    <div class="section-header">
+        <h1>Set Weekly Availability</h1>
+        <div class="actions">
+            <a class="btn btn-secondary" href="{{ url_for('coach_dashboard') }}">Back to Dashboard</a>
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <form method="post">
+            <p>Select the weekdays you want to teach (one coach per weekday):</p>
+            <div class="weekdays-grid">
+                {% for i, name in [(0,'Mon'),(1,'Tue'),(2,'Wed'),(3,'Thu'),(4,'Fri'),(5,'Sat'),(6,'Sun')] %}
+                <label class="weekday-label">
+                    <input type="checkbox" name="weekdays[]" value="{{ i }}" {% if i in my_weekdays %}checked{% endif %}>
+                    <span>{{ name }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            <div style="margin-top: 16px;">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-save" style="margin-right:8px;"></i>
+                    Save Availability
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.weekdays-grid { display:flex; gap:12px; flex-wrap:wrap; }
+.weekdays-grid label { background:#f8fafc;padding:10px;border-radius:8px;}
+</style>
+{% endblock %}

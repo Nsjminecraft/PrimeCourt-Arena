@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+  <div class="card">
+    <div class="card-content">
+      <span class="card-title">Cancel Dates</span>
+      <p>Select one or more dates to cancel. Students with bookings on those dates will be notified and refunded for the affected lessons.</p>
+
+      <form method="post" id="cancel-form">
+        <div class="row">
+          <div class="col s12">
+            <label for="dates">Choose dates to cancel (next 30 days):</label>
+            <select id="dates" name="dates" multiple style="width:100%; height: 200px;">
+              {% for d in upcoming_dates %}
+                <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:16px;">
+          <div class="col s12">
+            <button type="submit" class="btn btn-danger">Confirm Cancel & Refund</button>
+            <a href="{{ url_for('coach_dashboard') }}" class="btn btn-secondary">Back</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

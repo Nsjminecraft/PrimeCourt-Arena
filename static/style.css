@@ -181,7 +181,7 @@ img {
 
 /* Navigation */
 .navbar {
-    height: 64px;
+    height: 40px;
     padding: 0;
     display: flex;
     align-items: center;
@@ -193,6 +193,11 @@ img {
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+/* Slightly lift navbar content (logo + links) for better vertical alignment */
+.navbar .container {
+    transform: translateY(-6px);
 }
 
 /* Desktop: logo left, links right */
@@ -210,6 +215,8 @@ img {
         text-align: left;
         height: auto;
         padding: 12px 0;
+    /* undo lift on stacked mobile layout */
+    transform: none;
     }
     .nav-links {
         margin-top: 8px;
@@ -228,6 +235,8 @@ img {
     .navbar .container {
         align-items: center;
         text-align: center;
+    /* ensure mobile center layout is not shifted */
+    transform: none;
     }
     .nav-links {
         justify-content: center;
@@ -290,7 +299,7 @@ img {
 
 /* Hero Section */
 .hero {
-    height: 100vh;
+    height: 75vh;
     background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), 
                 url('https://images.unsplash.com/photo-1574629810360-7efbbe195f86?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');
     background-size: cover;
@@ -343,9 +352,11 @@ img {
 /* Sections */
 .section {
     background: #f7f9fb;
-    min-height: 80vh;
-    padding: 40px 0;
-    padding-top: 40px; /* Increase if needed */
+    /* Don't force a large minimum height on every section — pages with multiple
+       .section blocks (dashboard) would otherwise stack into a very tall page. */
+    min-height: auto;
+    padding: 24px 0;
+    padding-top: 24px;
 }
 
 .section h2 {
@@ -367,6 +378,39 @@ img {
     gap: 2rem;
     margin-top: 3rem;
 }
+
+/* Coaches grid and cards */
+.coach-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+}
+
+.coach-card {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 6px 18px rgba(32,80,129,0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.coach-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(32,80,129,0.08);
+}
+.coach-card a { color: inherit; text-decoration: none; }
+
+.coach-avatar {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 10px auto;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #f1f5f9;
+}
+.coach-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.coach-name { margin: 0.25rem 0; color: #205081; }
+.coach-bio { color: #666; font-size: 0.95rem; margin-bottom: 0; }
 
 .feature {
     text-align: center;
@@ -1050,4 +1094,11 @@ footer p {
 
 .book-btn:hover {
     background: #125ea6;
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: #205081;
 }

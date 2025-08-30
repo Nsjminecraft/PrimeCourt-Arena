@@ -13,6 +13,18 @@
 
     <div class="card">
         <div class="card-body">
+            <div class="mb-3">
+                <form method="get" action="{{ url_for('admin_users') }}" class="d-flex align-items-center" style="gap:8px;">
+                    <label for="role_filter" style="margin-bottom:0; font-weight:600; color:#205081;">Filter role:</label>
+                    <select id="role_filter" name="role" class="form-select form-select-sm" style="width:160px;">
+                        <option value="all" {% if not selected_role or selected_role == 'all' %}selected{% endif %}>All</option>
+                        <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
+                        <option value="coach" {% if selected_role == 'coach' %}selected{% endif %}>Coach</option>
+                        <option value="user" {% if selected_role == 'user' or selected_role == 'member' %}selected{% endif %}>User</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                </form>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover align-middle">
                     <thead class="table-light">
@@ -70,6 +82,22 @@
                                        onclick="return confirm('Promote this user to coach?')">
                                         <i class="fas fa-user-tie"></i> Make Coach
                                     </a>
+                                {% endif %}
+                                {# Disable/Enable toggle for non-admin users (prevent self-disable) #}
+                                {% if u._id|string != session.user_id and u.role != 'admin' %}
+                                    {% if u.get('is_active', True) %}
+                                        <a href="{{ url_for('admin_disable_user', user_id=u._id) }}" 
+                                           class="btn btn-sm btn-danger ms-2"
+                                           onclick="return confirm('Disable this user? This will deactivate their account and cancel memberships.')">
+                                            <i class="fas fa-user-slash"></i> Disable
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('admin_enable_user', user_id=u._id) }}" 
+                                           class="btn btn-sm btn-success ms-2"
+                                           onclick="return confirm('Enable this user? This will allow them to sign in again.')">
+                                            <i class="fas fa-user-check"></i> Enable
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
                             </td>
                         </tr>

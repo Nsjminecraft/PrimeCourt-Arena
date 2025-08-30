@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container section">
+  <div class="row">
+    <div class="col s12 m8 offset-m2">
+      <div class="card">
+        <div class="card-content">
+          <span class="card-title">My Profile</span>
+          <p>Edit your public profile information. Changes save via AJAX.</p>
+
+          <form id="profile-form">
+            <div class="form-section">
+              <label for="bio">Bio</label>
+              <textarea id="bio" name="bio" rows="4" style="width:100%; padding:8px; border-radius:6px;">{{ coach.bio or '' }}</textarea>
+            </div>
+
+            <div class="form-section">
+              <label for="specialties">Specialties (comma separated)</label>
+              <input type="text" id="specialties" name="specialties" value="{{ coach.specialties | join(', ') if coach.specialties else '' }}">
+            </div>
+
+            <div class="form-section">
+              <label for="email">Contact Email</label>
+              <input type="email" id="email" name="email" value="{{ coach.email or '' }}">
+            </div>
+
+            <div class="form-section">
+              <label for="picture">Profile Photo</label>
+              {% if coach.picture %}
+                <div style="margin-bottom:8px;"><img src="{{ url_for('static', filename=coach.picture) }}" alt="Profile" style="max-width:120px; border-radius:6px;"></div>
+              {% endif %}
+              <input type="file" id="picture" name="picture" accept="image/*">
+            </div>
+
+            <div class="form-section">
+              <button id="save-profile" type="button" class="cta-button">Save Profile</button>
+              <span id="profile-status" style="margin-left:12px;"></span>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const btn = document.getElementById('save-profile');
+  const status = document.getElementById('profile-status');
+  btn.addEventListener('click', async function() {
+    status.textContent = 'Saving...';
+    const form = document.getElementById('profile-form');
+    const fd = new FormData();
+    fd.append('bio', document.getElementById('bio').value);
+    fd.append('specialties', document.getElementById('specialties').value);
+    fd.append('email', document.getElementById('email').value);
+    const fileInput = document.getElementById('picture');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      fd.append('picture', fileInput.files[0]);
+    }
+
+    try {
+      const res = await fetch("{{ url_for('coach_profile_edit') }}", {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin' // include cookies so session is sent
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data = {};
+      if (contentType.includes('application/json')) {
+        try {
+          data = await res.json();
+        } catch (e) {
+          // JSON parse failed
+          status.textContent = 'Error saving profile.';
+          return;
+        }
+      } else {
+        // Non-JSON response — often a redirect to login or an HTML error page.
+        if (res.redirected || res.status === 302 || res.status === 401 || res.status === 403) {
+          // Navigate the browser so the user can log in
+          window.location = res.url || '/login';
+          return;
+        }
+        status.textContent = 'Error saving profile.';
+        return;
+      }
+
+      if (res.ok && data.success) {
+        status.textContent = 'Saved.';
+        // Optionally reload to show uploaded image
+        setTimeout(() => window.location.reload(), 700);
+      } else {
+        status.textContent = data.error || 'Error saving profile.';
+      }
+    } catch (err) {
+      status.textContent = 'Network error.';
+    }
+
+    setTimeout(() => { status.textContent = ''; }, 3000);
+  });
+});
+</script>
+{% endblock %}
+
+{% endblock %}
