@@ -1697,3 +1697,26 @@ def send_reminders():
     
     return f"Sent {reminder_count} reminder emails for {tomorrow}"
 
+@app.route('/admin/promote-me')
+@login_required
+def promote_me():
+    """Promote the current logged-in user to admin."""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            flash('You must be logged in.', 'error')
+            return redirect(url_for('login'))
+        mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': {
+                'is_admin': True,
+                'role': 'admin',
+                'promoted_at': datetime.now()
+            }},
+            upsert=False
+        )
+        session['is_admin'] = True
+        flash('You have been promoted to admin!', 'success')
+    except Exception as e:
+        flash('Error promoting to admin. Please try again.', 'error')
+    return redirect(url_for('admin_dashboard'))
