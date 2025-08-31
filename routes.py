@@ -339,7 +339,15 @@ def generate_month_slots(year, month):
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        name = request.form['name']
+        name = (request.form['name'] or '').strip()
+        # Enforce maximum name length to avoid layout break on small screens
+        MAX_NAME_LEN = 32
+        if len(name) == 0:
+            flash('Please provide your name.')
+            return redirect(url_for('signup'))
+        if len(name) > MAX_NAME_LEN:
+            flash(f'Name is too long. Please use {MAX_NAME_LEN} characters or fewer.', 'error')
+            return redirect(url_for('signup'))
         email = request.form['email']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
@@ -403,13 +411,14 @@ def login():
             flash('Incorrect password.')
             return redirect(url_for('login'))
         
-        # Set session variables
+        # Set session variables (limit displayed name length to avoid breaking mobile nav)
         session['user_id'] = str(user['_id'])
-        session['user_name'] = user['name']
+        display_name = user.get('name', '') or ''
+        session['user_name'] = (display_name[:32] + '...') if len(display_name) > 32 else display_name
         session['user_email'] = user['email']
         session['is_admin'] = user.get('role') == 'admin'
         session['is_coach'] = user.get('role') == 'coach'
-        
+
         # Redirect based on role
         flash('Logged in successfully!')
         if session['is_admin']:
@@ -417,7 +426,7 @@ def login():
         elif session['is_coach']:
             return redirect(url_for('coach_dashboard'))
         return redirect(url_for('lessons'))
-        
+
     return render_template('login.html')
 
 @app.route('/coach/dashboard', methods=['GET', 'POST'])

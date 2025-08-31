@@ -5,7 +5,9 @@
     <form method="post" onsubmit="return checkPasswords();" class="signup-form">
         <div class="form-group">
             <label for="name">Full Name</label>
-            <input type="text" id="name" name="name" required>
+            <!-- Limit name to 32 chars to avoid layout break on small screens -->
+            <input type="text" id="name" name="name" required maxlength="32" placeholder="First Last">
+            <small id="name-hint" style="display:none;color:#666;">Name trimmed to 32 characters.</small>
         </div>
         <div class="form-group">
             <label for="email">Email</label>
@@ -50,6 +52,15 @@ function checkPasswords() {
     if (password.value.length < 8) {
         alert('Password must be at least 8 characters long!');
         return false;
+    }
+
+    // Client-side safety: ensure name is within limits
+    var nameEl = document.getElementById('name');
+    if (nameEl && nameEl.value.length > 32) {
+        // Trim on submit and inform the user
+        nameEl.value = nameEl.value.substring(0, 32);
+        var hint = document.getElementById('name-hint');
+        if (hint) { hint.style.display = 'block'; }
     }
     
     return true;

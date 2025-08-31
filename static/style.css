@@ -884,26 +884,36 @@ footer p {
     }
     .nav-links {
         position: fixed;
-        top: 64px;
+        top: 54px; /* start slightly lower than the absolute hamburger */
         right: 0;
         background: #fff;
         flex-direction: column;
-        align-items: flex-end;
-        width: 180px;
-        height: 100vh;
+        /* left-align items so long text wraps/truncates instead of pushing layout */
+        align-items: flex-start;
+        width: 220px; /* slightly wider for better readability */
+        height: calc(100vh - 54px);
         box-shadow: -2px 0 8px rgba(32,80,129,0.08);
         transform: translateX(100%);
         transition: transform 0.3s ease;
         z-index: 1000;
-        padding-top: 20px;
+        padding-top: 8px;
         gap: 0;
+        padding-left: 12px;
     }
-    .nav-links.open {
-        transform: translateX(0);
-    }
+    .nav-links.open { transform: translateX(0); }
     .nav-links li {
-        margin: 0.8rem 1.2rem;
-        font-size: 1.1rem;
+        margin: 0.5rem 0.8rem;
+        font-size: 1.05rem;
+        width: 100%;
+    }
+    /* Truncate inline text (welcome name) to avoid pushing menu horizontally */
+    .nav-links li span, .nav-links li a span {
+        max-width: 160px;
+        display: inline-block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
     }
     .navbar-toggle {
         display: block !important;
