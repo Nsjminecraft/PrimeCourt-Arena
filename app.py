@@ -115,15 +115,15 @@ def court_booking_success():
             'status': 'confirmed'
         }
         
-    # Save to database
-    mongo.db.court_bookings.insert_one(court_booking)
+        # Save to database
+        mongo.db.court_bookings.insert_one(court_booking)
 
-    # Send confirmation email
-    details = f"<p><strong>Court:</strong> {court_id}</p>"
-    routes.send_booking_confirmation_email("Court Booking", user_name, user_email, date, time_slot, details)
+        # Send confirmation email
+        details = f"<p><strong>Court:</strong> {court_id}</p>"
+        routes.send_booking_confirmation_email("Court Booking", user_name, user_email, date, time_slot, details)
 
-    flash('Court booked successfully!', 'success')
-    return redirect(url_for('courts', date=date))
+        flash('Court booked successfully!', 'success')
+        return redirect(url_for('courts', date=date))
         
     except Exception as e:
         print(f"Error processing court booking success: {str(e)}")
