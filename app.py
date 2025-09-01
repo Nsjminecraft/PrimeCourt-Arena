@@ -65,7 +65,9 @@ import routes
 def index():
     # Load active coaches to show on the homepage
     try:
-        coaches = list(mongo.db.users.find({'role': 'coach', 'is_active': True}, {'password': 0}))
+        # Match coaches where role == 'coach' and is_active is True or missing (imported docs may lack the flag)
+        query = {'role': 'coach', '$or': [{'is_active': True}, {'is_active': {'$exists': False}}]}
+        coaches = list(mongo.db.users.find(query, {'password': 0}))
     except Exception:
         coaches = []
     return render_template('main.html', coaches=coaches)
@@ -113,15 +115,15 @@ def court_booking_success():
             'status': 'confirmed'
         }
         
-        # Save to database
-        mongo.db.court_bookings.insert_one(court_booking)
-        
-        # Send confirmation email
-        details = f"<p><strong>Court:</strong> {court_id}</p>"
-        send_booking_confirmation_email("Court Booking", user_name, user_email, date, time_slot, details)
-        
-        flash('Court booked successfully!', 'success')
-        return redirect(url_for('courts', date=date))
+    # Save to database
+    mongo.db.court_bookings.insert_one(court_booking)
+
+    # Send confirmation email
+    details = f"<p><strong>Court:</strong> {court_id}</p>"
+    routes.send_booking_confirmation_email("Court Booking", user_name, user_email, date, time_slot, details)
+
+    flash('Court booked successfully!', 'success')
+    return redirect(url_for('courts', date=date))
         
     except Exception as e:
         print(f"Error processing court booking success: {str(e)}")
