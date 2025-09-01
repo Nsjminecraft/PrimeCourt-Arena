@@ -1917,15 +1917,30 @@ def coach_profile(coach_id):
             flash('Coach not found.', 'error')
             return redirect(url_for('coaches'))
 
-        # Weekly availability
-        weekly = mongo.db.coach_weekly_availability.find_one({'coach_id': str(coach.get('_id') )})
+        # Weekly availability - accept coach_id stored either as string or ObjectId
+        coach_id_val = coach.get('_id')
+        coach_id_str = str(coach_id_val)
+        coach_id_obj = None
+        try:
+            coach_id_obj = ObjectId(coach_id_val)
+        except Exception:
+            try:
+                coach_id_obj = ObjectId(coach_id_str)
+            except Exception:
+                coach_id_obj = None
+
+        q_or = [{'coach_id': coach_id_str}]
+        if coach_id_obj:
+            q_or.append({'coach_id': coach_id_obj})
+
+        weekly = mongo.db.coach_weekly_availability.find_one({'$or': q_or})
         weekdays = weekly.get('weekdays') if weekly else []
 
-        # Upcoming bookings for this coach (next 30 days)
+        # Upcoming bookings for this coach (next 30 days) — query both id forms
         today = datetime.utcnow().date()
         end_date = today + timedelta(days=30)
         upcoming = []
-        for b in mongo.db.bookings.find({'coach_id': str(coach.get('_id'))}).sort('date', 1):
+        for b in mongo.db.bookings.find({'$or': q_or}).sort('date', 1):
             bdate = b.get('date')
             if isinstance(bdate, datetime):
                 ds = bdate.strftime('%Y-%m-%d')
