@@ -148,5 +148,25 @@ def test_email():
     except Exception as e:
         return f"Error sending test email: {str(e)}"
 
+
+@app.route('/_test_smtp')
+def _test_smtp():
+    """Synchronous SMTP connectivity/login test that returns JSON with the result.
+    Use this on Render to see the exact exception when connecting to your SMTP provider.
+    """
+    try:
+        # Import email settings from routes to keep a single source of truth
+        from routes import EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASSWORD
+        import smtplib
+
+        # Attempt a connection and login (timeout short so it fails fast)
+        server = smtplib.SMTP(EMAIL_HOST, int(EMAIL_PORT), timeout=10)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_PASSWORD)
+        server.quit()
+        return jsonify({'ok': True, 'message': 'SMTP connection and login succeeded', 'host': EMAIL_HOST, 'port': EMAIL_PORT, 'user': EMAIL_USER})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000, host='0.0.0.0')
