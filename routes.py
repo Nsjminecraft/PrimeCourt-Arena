@@ -1,5 +1,6 @@
 from flask import render_template, request, redirect, url_for, flash, session, jsonify
 from app import app, mongo, stripe, stripe_public_key, MEMBERSHIP_PLANS
+import os
 
 # Defensive initialization: some deployment/import orders leave `mongo` as None
 # (or without a working .db). Try to ensure `mongo.db` is available by:
@@ -111,6 +112,43 @@ def _parse_time_token(token: str):
         except Exception:
             continue
     return None
+
+
+@app.route('/_debug_db')
+def _debug_db():
+    """Temporary debug endpoint to check Mongo connectivity and sample coach data.
+    Do not enable in production long-term. Returns a small JSON summary.
+    """
+    info = {'can_connect': False}
+    try:
+        uri = app.config.get('MONGO_URI') or os.getenv('MONGO_URI') or ''
+        info['mongo_uri_masked'] = (uri[:12] + '...') if uri else None
+    except Exception:
+        info['mongo_uri_masked'] = None
+
+    try:
+        # Ping the server
+        try:
+            mongo.db.command('ping')
+            info['can_connect'] = True
+        except Exception as e:
+            info['can_connect'] = False
+            info['ping_error'] = str(e)
+
+        # Counts and a single sample coach (mask ObjectId)
+        try:
+            info['users_count'] = mongo.db.users.count_documents({})
+            info['coaches_count'] = mongo.db.users.count_documents({'role': 'coach'})
+            sample = mongo.db.users.find_one({'role': 'coach'}, {'password': 0})
+            if sample:
+                sample['_id'] = str(sample.get('_id'))
+            info['sample_coach'] = sample
+        except Exception as e:
+            info['counts_error'] = str(e)
+    except Exception as e:
+        info['error'] = str(e)
+
+    return jsonify(info)
 
 def get_lesson_prices():
     """Get lesson prices from database or return defaults if not set"""
@@ -1853,8 +1891,9 @@ def profile():
 @app.route('/coaches')
 def coaches():
     """Public page listing all active coaches."""
-    # Find users with role 'coach' and that are active
-    query = {'role': 'coach', 'is_active': True}
+    # Find users with role 'coach'. Accept documents where `is_active` is True
+    # or the field is missing (common when importing from another DB).
+    query = {'role': 'coach', '$or': [{'is_active': True}, {'is_active': {'$exists': False}}]}
     coaches = list(mongo.db.users.find(query, {'password': 0}))
     return render_template('coaches.html', coaches=coaches)
 
@@ -1863,12 +1902,14 @@ def coaches():
 def coach_profile(coach_id):
     """Show a coach's profile, availability and upcoming bookings."""
     try:
-        # coach_id may be stored as string id in DB
-        coach = mongo.db.users.find_one({'_id': coach_id}) if isinstance(coach_id, str) else None
-        # If not found by string, try ObjectId
-        if not coach:
+        # Try ObjectId lookup first (typical in MongoDB), then fall back to string _id
+        coach = None
+        try:
+            coach = mongo.db.users.find_one({'_id': ObjectId(coach_id)}, {'password': 0})
+        except Exception:
+            # Not an ObjectId or lookup failed; try string _id
             try:
-                coach = mongo.db.users.find_one({'_id': ObjectId(coach_id)})
+                coach = mongo.db.users.find_one({'_id': coach_id}, {'password': 0})
             except Exception:
                 coach = None
 
